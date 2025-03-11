@@ -40,7 +40,7 @@ def create_sample_fixtures():
             name=f"Examen {i}",
             date=timezone.now() + timedelta(days=i),
             duration="2h00",
-            students_count=25 + i*5,
+            participants=25 + i*5,
             level=f"L{i}",
             department=["Informatique", "Mathématiques", "Physique"][i-1]
         ) for i in range(1, 4)
