@@ -59,11 +59,29 @@ app.use((req, res, next) => {
   // ALWAYS serve the app on port 5000
   // this serves both the API and the client
   const port = 5000;
+  server.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      log(`Le port ${port} est déjà utilisé. Tentative avec le port ${port + 1}...`);
+      setTimeout(() => {
+        server.close();
+        server.listen({
+          port: port + 1,
+          host: "0.0.0.0",
+          reusePort: true,
+        });
+      }, 1000);
+    } else {
+      console.error('Erreur serveur:', err);
+    }
+  });
+
   server.listen({
     port,
     host: "0.0.0.0",
     reusePort: true,
   }, () => {
-    log(`serving on port ${port}`);
+    const address = server.address();
+    const actualPort = typeof address === 'object' && address ? address.port : port;
+    log(`serving on port ${actualPort}`);
   });
 })();
