@@ -1,0 +1,103 @@
+from ortools.sat.python import cp_model
+
+# Données d'entrée (exemple)
+examens = [
+    {"id": 1, "nom": "Mathématiques", "promotion": "L3", "filiere": "IA", "duree": 2},
+    {"id": 2, "nom": "Physique", "promotion": "L3", "filiere": "IA", "duree": 2},
+    {"id": 3, "nom": "Informatique", "promotion": "M1", "filiere": "IA", "duree": 3},
+    {"id": 4, "nom": "Économie", "promotion": "M2", "filiere": "Gestion", "duree": 2},
+]
+
+salles = [
+    {"id": 1, "nom": "Salle A", "capacite": 50},
+    {"id": 2, "nom": "Salle B", "capacite": 30},
+]
+
+surveillants = [
+    {"id": 1, "nom": "Mr. Dupont"},
+    {"id": 2, "nom": "Mme. Martin"},
+]
+
+creneaux = list(range(6))  # 6 créneaux (ex: 8h-10h, 10h-12h, etc.)
+
+# Modèle de résolution
+model = cp_model.CpModel()
+
+# Variables de décision
+X = {}  # X[e, s, t] = 1 si l'examen e est dans la salle s au créneau t
+Y = {}  # Y[e, v] = 1 si l'examen e est surveillé par le surveillant v
+
+for e in range(len(examens)):
+    for s in range(len(salles)):
+        for t in range(len(creneaux)):
+            X[e, s, t] = model.NewBoolVar(f'X_{e}_{s}_{t}')
+
+for e in range(len(examens)):
+    for v in range(len(surveillants)):
+        Y[e, v] = model.NewBoolVar(f'Y_{e}_{v}')
+
+# 1️⃣ **Chaque examen doit être affecté à une seule salle et un seul créneau**
+for e in range(len(examens)):
+    model.Add(sum(X[e, s, t] for s in range(len(salles)) for t in range(len(creneaux))) == 1)
+
+# 2️⃣ **Respect de la durée des examens**
+for e in range(len(examens)):
+    duree = examens[e]["duree"]
+    for s in range(len(salles)):
+        for t in range(len(creneaux) - duree + 1):  # Vérifier si l'examen peut tenir en entier
+            for dt in range(duree):
+                model.Add(X[e, s, t] <= X[e, s, t + dt])
+
+# 3️⃣ **Une salle ne peut pas accueillir plus d’un examen en même temps**
+for s in range(len(salles)):
+    for t in range(len(creneaux)):
+        model.Add(sum(X[e, s, t] for e in range(len(examens))) <= 1)
+
+# 4️⃣ **Un surveillant ne peut surveiller qu'un seul examen à la fois**
+for v in range(len(surveillants)):
+    for t in range(len(creneaux)):
+        model.Add(sum(Y[e, v] for e in range(len(examens))) <= 1)
+
+# 5️⃣ **Un examen doit être surveillé par au moins un surveillant**
+for e in range(len(examens)):
+    model.Add(sum(Y[e, v] for v in range(len(surveillants))) >= 1)
+
+# 6️⃣ **Les examens d’une même promotion ne peuvent pas être au même créneau**
+for e1 in range(len(examens)):
+    for e2 in range(e1 + 1, len(examens)):
+        if examens[e1]["promotion"] == examens[e2]["promotion"]:
+            for t in range(len(creneaux)):
+                model.Add(sum(X[e1, s, t] for s in range(len(salles))) +
+                          sum(X[e2, s, t] for s in range(len(salles))) <= 1)
+
+# 7️⃣ **Une filière ne peut pas avoir deux examens en même temps (même promotions différentes)**
+for e1 in range(len(examens)):
+    for e2 in range(e1 + 1, len(examens)):
+        if examens[e1]["filiere"] == examens[e2]["filiere"]:
+            for t in range(len(creneaux)):
+                model.Add(sum(X[e1, s, t] for s in range(len(salles))) +
+                          sum(X[e2, s, t] for s in range(len(salles))) <= 1)
+
+# **🔹 Fonction Objective : Minimiser le nombre de créneaux utilisés et équilibrer la charge**
+model.Minimize(sum(t * X[e, s, t] for e in range(len(examens)) for s in range(len(salles)) for t in range(len(creneaux))))
+
+# Solveur
+solver = cp_model.CpSolver()
+status = solver.Solve(model)
+
+# Résultats
+if status == cp_model.OPTIMAL or status == cp_model.FEASIBLE:
+    print("\n✅ Solution trouvée :")
+    for e in range(len(examens)):
+        for s in range(len(salles)):
+            for t in range(len(creneaux)):
+                if solver.Value(X[e, s, t]) == 1:
+                    print(f"📌 Examen {examens[e]['nom']} ({examens[e]['promotion']} - {examens[e]['filiere']})"
+                          f" dans {salles[s]['nom']} à partir du créneau {t}")
+
+        for v in range(len(surveillants)):
+            if solver.Value(Y[e, v]) == 1:
+                print(f"🔹 Surveillant {surveillants[v]['nom']} affecté à l'examen {examens[e]['nom']}")
+
+else:
+    print("⚠️ Aucune solution trouvée")
