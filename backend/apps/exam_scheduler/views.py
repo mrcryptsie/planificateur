@@ -152,3 +152,47 @@ def schedule_exams(request):
             {'status': 'failure', 'message': 'No feasible schedule found'},
             status=status.HTTP_400_BAD_REQUEST
         )
+        
+@api_view(['POST'])
+def manual_schedule(request):
+    exam_id = request.data.get('exam_id')
+    room_id = request.data.get('room_id')
+    time_slot_id = request.data.get('time_slot_id')
+    proctor_ids = request.data.get('proctor_ids', [])
+    
+    if not all([exam_id, room_id, time_slot_id, proctor_ids]):
+        return Response(
+            {'error': 'Missing required fields'},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+    
+    try:
+        exam = Exam.objects.get(id=exam_id)
+        room = Room.objects.get(id=room_id)
+        time_slot = TimeSlot.objects.get(id=time_slot_id)
+        
+        # Assignation de la salle à l'examen
+        exam.room = room
+        exam.save()
+        
+        # Ajout des surveillants
+        exam.proctors.clear()
+        for proctor_id in proctor_ids:
+            proctor = Proctor.objects.get(id=proctor_id)
+            exam.proctors.add(proctor)
+        
+        # Mise à jour du créneau
+        time_slot.exam = exam
+        time_slot.room = room
+        time_slot.save()
+        
+        # Mise à jour du statut de la salle
+        room.status = 'occupied'
+        room.save()
+        
+        return Response({'status': 'success', 'message': 'Exam scheduled successfully'})
+    except Exception as e:
+        return Response(
+            {'status': 'failure', 'message': str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )

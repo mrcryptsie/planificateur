@@ -15,4 +15,5 @@ urlpatterns = [
     path('', include(router.urls)),
     path('stats/', get_stats, name='get_stats'),
     path('schedule/', schedule_exams, name='schedule_exams'),
+    path('manual-schedule/', manual_schedule, name='manual_schedule'),
 ]

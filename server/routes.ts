@@ -2,6 +2,8 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertRoomSchema, insertProctorSchema, insertExamSchema, insertTimeSlotSchema } from "@shared/schema";
+import axios from 'axios'; // Added import for axios
+
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // API Routes for Rooms
@@ -72,7 +74,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get("/api/exams", async (req, res) => {
     try {
       const { level, department, date } = req.query;
-      
+
       // If filters are provided, use filtered method
       if (level || department || date) {
         const exams = await storage.getFilteredExams({
@@ -82,7 +84,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         });
         return res.json(exams);
       }
-      
+
       // Otherwise get all exams
       const exams = await storage.getAllExams();
       res.json(exams);
@@ -142,7 +144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error fetching stats" });
     }
   });
-  
+
   // API Route pour la planification des examens
   app.post("/api/schedule", async (_req, res) => {
     try {
@@ -151,6 +153,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(result);
     } catch (error) {
       res.status(500).json({ message: "Erreur lors de la planification des examens" });
+    }
+  });
+
+  // Endpoint pour la planification manuelle
+  app.post("/api/manual-schedule", async (req, res) => {
+    try {
+      const { examId, roomId, timeSlotId, proctorIds } = req.body;
+
+      // Appeler le backend Django
+      const response = await axios.post('http://localhost:8000/api/exam-scheduler/manual-schedule/', {
+        exam_id: examId,
+        room_id: roomId,
+        time_slot_id: timeSlotId,
+        proctor_ids: proctorIds
+      });
+
+      res.status(200).json(response.data);
+    } catch (error) {
+      console.error('Error in manual scheduling:', error);
+      res.status(500).send('Internal server error');
     }
   });
 

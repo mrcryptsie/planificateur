@@ -1,7 +1,8 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useToast } from '@/components/ui/use-toast';
+import axios from 'axios';
 import {
   Card,
   CardContent,
@@ -18,6 +19,24 @@ import {
 } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Input } from "@/components/ui/input";
+import {
+  Form,
+  FormControl,
+  FormDescription,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import { useForm } from "react-hook-form";
+import {
   LucidePlay,
   LucideLoader,
   LucideCheck,
@@ -28,6 +47,8 @@ import {
   LucideTimer,
   LucideSettings,
   LucideBookOpen,
+  LucideSearch,
+  LucideFilter,
 } from 'lucide-react';
 import {
   AlertDialog,
@@ -41,7 +62,7 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import axios from 'axios';
+import { Progress } from "@/components/ui/progress";
 
 interface Room {
   id: number;
@@ -68,17 +89,36 @@ interface Exam {
   proctorIds: number[] | null;
 }
 
+interface TimeSlot {
+  id: number;
+  start_time: string;
+  end_time: string;
+  day: string;
+}
+
+interface FilterOptions {
+  department: string;
+  level: string;
+  date: string;
+}
+
 export default function Scheduler() {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimizationResult, setOptimizationResult] = useState<{
     status: string;
     scheduled_exams: number;
   } | null>(null);
+  const [filters, setFilters] = useState<FilterOptions>({
+    department: '',
+    level: '',
+    date: '',
+  });
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [selectedTab, setSelectedTab] = useState("dashboard");
 
   // Récupérer les données
-  const { data: exams = [] } = useQuery<Exam[]>({
+  const { data: exams = [], isLoading: examsLoading } = useQuery<Exam[]>({
     queryKey: ['/api/exams'],
   });
 
@@ -89,6 +129,24 @@ export default function Scheduler() {
   const { data: proctors = [] } = useQuery<Proctor[]>({
     queryKey: ['/api/proctors'],
   });
+
+  const { data: timeSlots = [] } = useQuery<TimeSlot[]>({
+    queryKey: ['/api/time-slots'],
+  });
+
+  // État pour le formulaire
+  const [formData, setFormData] = useState({
+    examId: '',
+    roomId: '',
+    timeSlotId: '',
+    proctorIds: [] as string[],
+  });
+
+  // Vérifier s'il y a assez de salles et de surveillants
+  const unscheduledExams = exams.filter(exam => !exam.roomId);
+  const availableRooms = rooms.filter(room => room.status !== 'occupied');
+  const hasEnoughRooms = availableRooms.length >= unscheduledExams.length;
+  const hasEnoughProctors = proctors.length >= unscheduledExams.length;
 
   // Mutation pour l'optimisation
   const optimizeMutation = useMutation({
@@ -116,348 +174,433 @@ export default function Scheduler() {
     }
   });
 
+  // Mutation pour la planification manuelle
+  const manualScheduleMutation = useMutation({
+    mutationFn: async (data: any) => {
+      const response = await axios.post('/api/manual-schedule', data);
+      return response.data;
+    },
+    onSuccess: () => {
+      toast({
+        title: "Examen planifié",
+        description: "L'examen a été planifié avec succès.",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
+      // Réinitialiser le formulaire
+      setFormData({
+        examId: '',
+        roomId: '',
+        timeSlotId: '',
+        proctorIds: [],
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Erreur",
+        description: "La planification de l'examen a échoué. Veuillez réessayer.",
+        variant: "destructive",
+      });
+    }
+  });
+
   const handleStartOptimization = () => {
     setIsOptimizing(true);
     optimizeMutation.mutate();
   };
 
-  // Statistiques pour le tableau de bord
-  const unassignedExams = exams.filter(exam => exam.roomId === null).length;
-  const assignedExams = exams.length - unassignedExams;
-  const assignmentRate = exams.length > 0 ? Math.round((assignedExams / exams.length) * 100) : 0;
+  const handleManualScheduleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    manualScheduleMutation.mutate(formData);
+  };
 
-  // Vérification des ressources
-  const hasEnoughRooms = rooms.length >= unassignedExams;
-  const hasEnoughProctors = proctors.length >= unassignedExams;
-  const hasAssignedRooms = exams.some(exam => exam.roomId !== null);
-  const hasAssignedProctors = exams.some(exam => exam.proctorIds !== null && exam.proctorIds.length > 0);
+  const handleFilterChange = (field: keyof FilterOptions, value: string) => {
+    setFilters(prev => ({ ...prev, [field]: value }));
+  };
+
+  const filteredExams = exams.filter(exam => {
+    return (
+      (filters.department === '' || exam.department === filters.department) &&
+      (filters.level === '' || exam.level === filters.level) &&
+      (filters.date === '' || exam.date.includes(filters.date))
+    );
+  });
+
+  const scheduledExams = filteredExams.filter(exam => exam.roomId !== null);
+  const unassignedExams = filteredExams.filter(exam => exam.roomId === null);
+
+  // Options pour les filtres
+  const departments = [...new Set(exams.map(e => e.department))];
+  const levels = [...new Set(exams.map(e => e.level))];
 
   return (
-    <div className="space-y-6">
-      <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
-        <h1 className="text-3xl font-bold">Planificateur d'Examens</h1>
-        
-        <AlertDialog>
-          <AlertDialogTrigger asChild>
-            <Button 
-              disabled={isOptimizing || exams.length === 0 || unassignedExams === 0}
-              className="bg-primary-600 hover:bg-primary-700"
-            >
-              {isOptimizing ? (
-                <>
-                  <LucideLoader className="mr-2 h-4 w-4 animate-spin" />
-                  Optimisation en cours...
-                </>
-              ) : (
-                <>
-                  <LucidePlay className="mr-2 h-4 w-4" />
-                  Lancer l'optimisation
-                </>
-              )}
-            </Button>
-          </AlertDialogTrigger>
-          <AlertDialogContent>
-            <AlertDialogHeader>
-              <AlertDialogTitle>Lancer la planification</AlertDialogTitle>
-              <AlertDialogDescription>
-                Vous êtes sur le point de lancer la planification automatique des examens.
-                Cette action va affecter des salles et des surveillants aux examens non-assignés.
-                {!hasEnoughRooms && (
-                  <Alert className="mt-4 bg-yellow-50 border-yellow-200">
-                    <LucideAlertCircle className="h-4 w-4 text-yellow-600" />
-                    <AlertTitle className="text-yellow-600">Attention</AlertTitle>
-                    <AlertDescription className="text-yellow-600">
-                      Il n'y a pas assez de salles disponibles pour tous les examens.
-                    </AlertDescription>
-                  </Alert>
-                )}
-                {!hasEnoughProctors && (
-                  <Alert className="mt-4 bg-yellow-50 border-yellow-200">
-                    <LucideAlertCircle className="h-4 w-4 text-yellow-600" />
-                    <AlertTitle className="text-yellow-600">Attention</AlertTitle>
-                    <AlertDescription className="text-yellow-600">
-                      Il n'y a pas assez de surveillants disponibles pour tous les examens.
-                    </AlertDescription>
-                  </Alert>
-                )}
-              </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-              <AlertDialogCancel>Annuler</AlertDialogCancel>
-              <AlertDialogAction 
-                onClick={handleStartOptimization}
-                className="bg-primary-600 hover:bg-primary-700"
-              >
-                Lancer
-              </AlertDialogAction>
-            </AlertDialogFooter>
-          </AlertDialogContent>
-        </AlertDialog>
-      </div>
-
-      <Tabs defaultValue="dashboard" className="w-full">
-        <TabsList className="grid w-full sm:w-[600px] grid-cols-3">
+    <div className="container mx-auto px-4 py-8">
+      <h1 className="text-3xl font-bold mb-6">Planificateur d'examens</h1>
+      
+      <Tabs value={selectedTab} onValueChange={setSelectedTab} className="w-full">
+        <TabsList className="grid grid-cols-3 w-full max-w-md mx-auto mb-8">
           <TabsTrigger value="dashboard">Tableau de bord</TabsTrigger>
-          <TabsTrigger value="configuration">Configuration</TabsTrigger>
-          <TabsTrigger value="results">Résultats</TabsTrigger>
+          <TabsTrigger value="automatic">Automatique</TabsTrigger>
+          <TabsTrigger value="manual">Manuel</TabsTrigger>
         </TabsList>
         
+        {/* Onglet de tableau de bord */}
         <TabsContent value="dashboard">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-xl">Examens</CardTitle>
-                <CardDescription>
-                  Aperçu des examens à planifier
-                </CardDescription>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Total des examens</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col gap-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500">Total des examens</span>
-                    <span className="font-semibold">{exams.length}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500">Examens assignés</span>
-                    <span className="font-semibold text-green-600">{assignedExams}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500">Examens non assignés</span>
-                    <span className="font-semibold text-red-600">{unassignedExams}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500">Taux d'assignation</span>
-                    <span className="font-semibold">{assignmentRate}%</span>
-                  </div>
-                </div>
+                <div className="text-2xl font-bold">{exams.length}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {scheduledExams.length} planifiés, {unassignedExams.length} non planifiés
+                </p>
+                <Progress
+                  value={exams.length > 0 ? (scheduledExams.length / exams.length) * 100 : 0}
+                  className="h-2 mt-2"
+                />
               </CardContent>
             </Card>
             
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-xl">Ressources</CardTitle>
-                <CardDescription>
-                  Salles et surveillants disponibles
-                </CardDescription>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Salles disponibles</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col gap-3">
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500">Salles disponibles</span>
-                    <span className="font-semibold">{rooms.filter(r => r.status !== 'occupied').length} / {rooms.length}</span>
-                  </div>
-                  <div className="flex justify-between items-center">
-                    <span className="text-sm text-gray-500">Surveillants disponibles</span>
-                    <span className="font-semibold">{proctors.length}</span>
-                  </div>
-                  <div className="flex items-center mt-2">
-                    <div className={`w-4 h-4 rounded-full mr-2 ${hasEnoughRooms ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                    <span className="text-sm">{hasEnoughRooms ? 'Salles suffisantes' : 'Salles insuffisantes'}</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className={`w-4 h-4 rounded-full mr-2 ${hasEnoughProctors ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
-                    <span className="text-sm">{hasEnoughProctors ? 'Surveillants suffisants' : 'Surveillants insuffisants'}</span>
-                  </div>
-                </div>
+                <div className="text-2xl font-bold">{availableRooms.length} / {rooms.length}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {rooms.length - availableRooms.length} salles occupées
+                </p>
+                <Progress
+                  value={rooms.length > 0 ? (availableRooms.length / rooms.length) * 100 : 0}
+                  className="h-2 mt-2"
+                />
               </CardContent>
             </Card>
             
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-xl">Statut</CardTitle>
-                <CardDescription>
-                  État de la planification
-                </CardDescription>
+                <CardTitle className="text-sm font-medium text-muted-foreground">Surveillants</CardTitle>
               </CardHeader>
               <CardContent>
-                <div className="flex flex-col gap-3">
-                  <div className="flex items-center">
-                    <div className={`w-4 h-4 rounded-full mr-2 ${hasAssignedRooms ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                    <span className="text-sm">Salles assignées</span>
-                  </div>
-                  <div className="flex items-center">
-                    <div className={`w-4 h-4 rounded-full mr-2 ${hasAssignedProctors ? 'bg-green-500' : 'bg-gray-300'}`}></div>
-                    <span className="text-sm">Surveillants assignés</span>
-                  </div>
-                </div>
-                
-                {optimizationResult && (
-                  <div className="mt-6 p-3 bg-green-50 border border-green-200 rounded-md">
-                    <div className="flex items-center">
-                      <LucideCheck className="text-green-600 mr-2" />
-                      <span className="text-sm font-medium text-green-700">Optimisation réussie</span>
-                    </div>
-                    <p className="text-sm text-green-600 mt-1">
-                      {optimizationResult.scheduled_exams} examens planifiés
-                    </p>
-                  </div>
-                )}
+                <div className="text-2xl font-bold">{proctors.length}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  {proctors.length > 0 ? 'Disponibles pour les examens' : 'Aucun surveillant'}
+                </p>
+              </CardContent>
+            </Card>
+            
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="text-sm font-medium text-muted-foreground">Créneaux</CardTitle>
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{timeSlots.length}</div>
+                <p className="text-xs text-muted-foreground mt-1">
+                  Créneaux disponibles pour planification
+                </p>
               </CardContent>
             </Card>
           </div>
+          
+          {/* Liste des examens avec filtres */}
+          <Card className="mb-8">
+            <CardHeader>
+              <CardTitle>Liste des examens</CardTitle>
+              <CardDescription>Recherchez et filtrez les examens</CardDescription>
+              <div className="flex flex-col md:flex-row gap-4 mt-4">
+                <div className="flex-1">
+                  <Select value={filters.department} onValueChange={(value) => handleFilterChange('department', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Département" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Tous les départements</SelectItem>
+                      {departments.map((dept) => (
+                        <SelectItem key={dept} value={dept}>{dept}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1">
+                  <Select value={filters.level} onValueChange={(value) => handleFilterChange('level', value)}>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Niveau" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="">Tous les niveaux</SelectItem>
+                      {levels.map((level) => (
+                        <SelectItem key={level} value={level}>{level}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="flex-1">
+                  <Input
+                    type="date"
+                    value={filters.date}
+                    onChange={(e) => handleFilterChange('date', e.target.value)}
+                    className="w-full"
+                  />
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                <div className="rounded-md border">
+                  <div className="grid grid-cols-7 gap-3 p-4 font-medium bg-muted/50">
+                    <div>Examen</div>
+                    <div>Niveau</div>
+                    <div>Département</div>
+                    <div>Durée</div>
+                    <div>Date</div>
+                    <div>Salle</div>
+                    <div>Statut</div>
+                  </div>
+                  {filteredExams.length === 0 ? (
+                    <div className="p-4 text-center text-muted-foreground">
+                      Aucun examen trouvé avec ces filtres
+                    </div>
+                  ) : (
+                    filteredExams.map((exam) => (
+                      <div key={exam.id} className="grid grid-cols-7 gap-3 p-4 border-t">
+                        <div>{exam.name}</div>
+                        <div>{exam.level}</div>
+                        <div>{exam.department}</div>
+                        <div>{exam.duration}</div>
+                        <div>{new Date(exam.date).toLocaleDateString()}</div>
+                        <div>
+                          {exam.roomId ? (
+                            rooms.find(r => r.id === exam.roomId)?.name || '-'
+                          ) : (
+                            <span className="text-muted-foreground">Non assigné</span>
+                          )}
+                        </div>
+                        <div>
+                          {exam.roomId ? (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                              Planifié
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-yellow-100 text-yellow-800">
+                              Non planifié
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
         
-        <TabsContent value="configuration">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Paramètres de planification</CardTitle>
-                <CardDescription>
-                  Ajustez les paramètres pour optimiser la planification
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <LucideCalendar className="w-5 h-5 mr-2 text-gray-500" />
-                      <span>Plage horaire maximale</span>
-                    </div>
-                    <span className="font-medium">8h - 18h</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <LucideTimer className="w-5 h-5 mr-2 text-gray-500" />
-                      <span>Pause entre examens</span>
-                    </div>
-                    <span className="font-medium">30 minutes</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <LucideUsers className="w-5 h-5 mr-2 text-gray-500" />
-                      <span>Surveillants par examen</span>
-                    </div>
-                    <span className="font-medium">Min. 1</span>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center">
-                      <LucideBuildingSquare className="w-5 h-5 mr-2 text-gray-500" />
-                      <span>Utilisation des salles</span>
-                    </div>
-                    <span className="font-medium">Optimale</span>
-                  </div>
-                </div>
-              </CardContent>
-              <CardFooter className="border-t pt-6">
-                <Button variant="outline" className="w-full">
-                  <LucideSettings className="w-4 h-4 mr-2" />
-                  Personnaliser
-                </Button>
-              </CardFooter>
-            </Card>
-            
-            <Card>
-              <CardHeader>
-                <CardTitle>Contraintes</CardTitle>
-                <CardDescription>
-                  Règles appliquées lors de la planification
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="space-y-2">
-                  <div className="flex items-start">
-                    <LucideCheck className="w-5 h-5 mr-2 text-green-600 flex-shrink-0 mt-0.5" />
-                    <span>Pas d'examens simultanés pour une même promotion</span>
-                  </div>
-                  
-                  <div className="flex items-start">
-                    <LucideCheck className="w-5 h-5 mr-2 text-green-600 flex-shrink-0 mt-0.5" />
-                    <span>Un surveillant ne peut pas surveiller deux examens en même temps</span>
-                  </div>
-                  
-                  <div className="flex items-start">
-                    <LucideCheck className="w-5 h-5 mr-2 text-green-600 flex-shrink-0 mt-0.5" />
-                    <span>Capacité des salles respectée selon le nombre de participants</span>
-                  </div>
-                  
-                  <div className="flex items-start">
-                    <LucideCheck className="w-5 h-5 mr-2 text-green-600 flex-shrink-0 mt-0.5" />
-                    <span>Les examens d'une même filière ne peuvent pas être en même temps</span>
-                  </div>
-                  
-                  <div className="flex items-start">
-                    <LucideCheck className="w-5 h-5 mr-2 text-green-600 flex-shrink-0 mt-0.5" />
-                    <span>Respect des disponibilités des surveillants</span>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-        
-        <TabsContent value="results">
+        {/* Onglet de planification automatique */}
+        <TabsContent value="automatic">
           <Card>
             <CardHeader>
-              <CardTitle>Résultats de la planification</CardTitle>
+              <CardTitle>Planification automatique</CardTitle>
               <CardDescription>
-                Visualisez les examens planifiés
+                Utilisez notre algorithme d'optimisation pour planifier automatiquement tous les examens
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {exams.length > 0 && exams.some(e => e.roomId) ? (
-                <div className="space-y-6">
-                  {exams.filter(e => e.roomId).map(exam => {
-                    const room = rooms.find(r => r.id === exam.roomId);
-                    const examProctors = exam.proctorIds 
-                      ? proctors.filter(p => exam.proctorIds?.includes(p.id))
-                      : [];
-                    
-                    return (
-                      <div key={exam.id} className="border rounded-lg p-4 shadow-sm">
-                        <div className="flex items-center justify-between mb-2">
-                          <div className="flex items-center">
-                            <LucideBookOpen className="text-primary-600 mr-2" />
-                            <h3 className="font-medium">{exam.name}</h3>
-                          </div>
-                          <span className="text-sm bg-primary-100 text-primary-800 px-2 py-1 rounded">
-                            {exam.level.toUpperCase()}
-                          </span>
-                        </div>
-                        
-                        <div className="grid grid-cols-2 gap-4 mt-4">
-                          <div>
-                            <p className="text-sm text-gray-500">Salle</p>
-                            <p className="font-medium">{room?.name || "Non assignée"}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Date</p>
-                            <p className="font-medium">
-                              {new Date(exam.date).toLocaleDateString('fr-FR')}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Durée</p>
-                            <p className="font-medium">{exam.duration}</p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-gray-500">Participants</p>
-                            <p className="font-medium">{exam.participants}</p>
-                          </div>
-                          <div className="col-span-2">
-                            <p className="text-sm text-gray-500">Surveillants</p>
-                            <p className="font-medium">
-                              {examProctors.length > 0 
-                                ? examProctors.map(p => p.name).join(", ") 
-                                : "Non assignés"}
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
+              <div className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                  <div className="flex flex-col items-center p-4 border rounded-lg">
+                    <LucideCalendar className="text-primary h-8 w-8 mb-2" />
+                    <div className="text-xl font-semibold">{unscheduledExams.length}</div>
+                    <div className="text-muted-foreground text-sm">Examens non planifiés</div>
+                  </div>
+                  
+                  <div className="flex flex-col items-center p-4 border rounded-lg">
+                    <LucideBuildingSquare className="text-primary h-8 w-8 mb-2" />
+                    <div className="text-xl font-semibold">{availableRooms.length}</div>
+                    <div className="text-muted-foreground text-sm">Salles disponibles</div>
+                  </div>
+                  
+                  <div className="flex flex-col items-center p-4 border rounded-lg">
+                    <LucideUsers className="text-primary h-8 w-8 mb-2" />
+                    <div className="text-xl font-semibold">{proctors.length}</div>
+                    <div className="text-muted-foreground text-sm">Surveillants disponibles</div>
+                  </div>
                 </div>
-              ) : (
-                <div className="text-center py-12">
-                  <LucideCalendar className="w-12 h-12 mx-auto text-gray-300 mb-4" />
-                  <h3 className="text-lg font-medium">Aucun examen planifié</h3>
-                  <p className="text-sm text-gray-500 mt-2">
-                    Lancez l'optimisation pour planifier les examens
-                  </p>
+                
+                {/* Résultat de la dernière optimisation */}
+                {optimizationResult && (
+                  <Alert className={optimizationResult.status === 'success' ? 'bg-green-50 border-green-200' : 'bg-yellow-50 border-yellow-200'}>
+                    <LucideCheck className="h-4 w-4 text-green-600" />
+                    <AlertTitle>Résultat de la planification</AlertTitle>
+                    <AlertDescription>
+                      {optimizationResult.status === 'success'
+                        ? `${optimizationResult.scheduled_exams} examens ont été planifiés avec succès.`
+                        : 'La planification n\'a pas pu être complétée.'}
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </div>
+            </CardContent>
+            <CardFooter>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button 
+                    className="w-full bg-primary hover:bg-primary/90"
+                    disabled={isOptimizing || unscheduledExams.length === 0}
+                  >
+                    {isOptimizing ? (
+                      <>
+                        <LucideLoader className="mr-2 h-4 w-4 animate-spin" />
+                        Optimisation en cours...
+                      </>
+                    ) : (
+                      <>
+                        <LucidePlay className="mr-2 h-4 w-4" />
+                        Lancer l'optimisation
+                      </>
+                    )}
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Confirmer la planification automatique</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      Vous êtes sur le point de lancer la planification automatique pour {unscheduledExams.length} examens.
+                      Cette action peut prendre quelques instants.
+                      
+                      {!hasEnoughRooms && (
+                        <Alert className="mt-4 bg-yellow-50 border-yellow-200">
+                          <LucideAlertCircle className="h-4 w-4 text-yellow-600" />
+                          <AlertTitle className="text-yellow-600">Attention</AlertTitle>
+                          <AlertDescription className="text-yellow-600">
+                            Il n'y a pas assez de salles disponibles pour tous les examens.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                      {!hasEnoughProctors && (
+                        <Alert className="mt-4 bg-yellow-50 border-yellow-200">
+                          <LucideAlertCircle className="h-4 w-4 text-yellow-600" />
+                          <AlertTitle className="text-yellow-600">Attention</AlertTitle>
+                          <AlertDescription className="text-yellow-600">
+                            Il n'y a pas assez de surveillants disponibles pour tous les examens.
+                          </AlertDescription>
+                        </Alert>
+                      )}
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Annuler</AlertDialogCancel>
+                    <AlertDialogAction 
+                      onClick={handleStartOptimization}
+                      className="bg-primary-600 hover:bg-primary-700"
+                    >
+                      Lancer
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </CardFooter>
+          </Card>
+        </TabsContent>
+        
+        {/* Onglet de planification manuelle */}
+        <TabsContent value="manual">
+          <Card>
+            <CardHeader>
+              <CardTitle>Planification manuelle</CardTitle>
+              <CardDescription>
+                Assignez manuellement des salles et des surveillants aux examens
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <form onSubmit={handleManualScheduleSubmit} className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Examen</label>
+                    <Select
+                      value={formData.examId}
+                      onValueChange={(value) => setFormData({...formData, examId: value})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionner un examen" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {unscheduledExams.map((exam) => (
+                          <SelectItem key={exam.id} value={exam.id.toString()}>{exam.name}</SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Salle</label>
+                    <Select
+                      value={formData.roomId}
+                      onValueChange={(value) => setFormData({...formData, roomId: value})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionner une salle" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {availableRooms.map((room) => (
+                          <SelectItem key={room.id} value={room.id.toString()}>
+                            {room.name} (Capacité: {room.capacity})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Créneau horaire</label>
+                    <Select
+                      value={formData.timeSlotId}
+                      onValueChange={(value) => setFormData({...formData, timeSlotId: value})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionner un créneau" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {timeSlots.map((slot) => (
+                          <SelectItem key={slot.id} value={slot.id.toString()}>
+                            {slot.day} - {slot.start_time} à {slot.end_time}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Surveillants</label>
+                    <Select
+                      value={formData.proctorIds[0] || ''}
+                      onValueChange={(value) => setFormData({...formData, proctorIds: [value]})}
+                    >
+                      <SelectTrigger>
+                        <SelectValue placeholder="Sélectionner un surveillant" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {proctors.map((proctor) => (
+                          <SelectItem key={proctor.id} value={proctor.id.toString()}>
+                            {proctor.name} ({proctor.department})
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Un seul surveillant peut être sélectionné à la fois.
+                    </p>
+                  </div>
                 </div>
-              )}
+                
+                <Button 
+                  type="submit" 
+                  className="w-full"
+                  disabled={!formData.examId || !formData.roomId || !formData.timeSlotId || formData.proctorIds.length === 0}
+                >
+                  Planifier l'examen
+                </Button>
+              </form>
             </CardContent>
           </Card>
         </TabsContent>
