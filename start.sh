@@ -1,4 +1,3 @@
-
 #!/bin/bash
 
 # Tuer tous les processus Node.js et Python en cours
