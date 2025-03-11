@@ -1,4 +1,3 @@
-
 #!/usr/bin/env python
 import os
 import sys
@@ -31,12 +30,15 @@ def create_superuser():
         print("Superuser created.")
 
 def load_fixtures():
-    from backend.apps.exam_scheduler.fixtures import generate_fixtures
-    
-    print("Loading fixtures...")
-    fixtures = generate_fixtures()
+    """Load fixtures for the exam_scheduler app."""
+    from backend.apps.exam_scheduler.fixtures import create_sample_fixtures, create_default_timeslots
+
+    fixtures = create_sample_fixtures()
+    # Création des créneaux horaires par défaut
+    create_default_timeslots()
+
     print(f"Created {len(fixtures['rooms'])} rooms, {len(fixtures['proctors'])} proctors, "
-          f"{len(fixtures['exams'])} exams.")
+          f"and {len(fixtures['exams'])} exams.")
 
 def run_server():
     print("Starting Django development server...")
