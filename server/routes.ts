@@ -175,6 +175,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).send('Internal server error');
     }
   });
+  
+  // Route pour générer des créneaux horaires
+  app.post("/api/generate-timeslots", async (req, res) => {
+    try {
+      const response = await axios.post('http://localhost:8000/api/exam-scheduler/generate-timeslots/', {
+        start_time: "08:00",
+        end_time: "18:00",
+        interval_minutes: 30
+      });
+      
+      res.status(200).json({ success: true, data: response.data });
+    } catch (error) {
+      console.error('Error generating time slots:', error);
+      res.status(500).json({ success: false, message: 'Internal server error' });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;

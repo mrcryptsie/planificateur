@@ -196,3 +196,53 @@ def manual_schedule(request):
             {'status': 'failure', 'message': str(e)},
             status=status.HTTP_400_BAD_REQUEST
         )
+
+@api_view(['POST'])
+def generate_timeslots(request):
+    """Générer des créneaux horaires pour les examens."""
+    start_time_str = request.data.get('start_time', '08:00')
+    end_time_str = request.data.get('end_time', '18:00')
+    interval_minutes = int(request.data.get('interval_minutes', 30))
+    
+    try:
+        # Obtenir la date actuelle
+        today = timezone.now().date()
+        
+        # Créer les heures de début et de fin
+        start_hour, start_minute = map(int, start_time_str.split(':'))
+        end_hour, end_minute = map(int, end_time_str.split(':'))
+        
+        start_time = timezone.datetime.combine(today, timezone.datetime.min.time().replace(hour=start_hour, minute=start_minute))
+        end_time = timezone.datetime.combine(today, timezone.datetime.min.time().replace(hour=end_hour, minute=end_minute))
+        
+        # Générer les créneaux
+        current_time = start_time
+        created_slots = []
+        
+        while current_time < end_time:
+            next_time = current_time + timedelta(minutes=interval_minutes)
+            
+            # Créer un créneau horaire
+            time_slot = TimeSlot.objects.create(
+                start_time=current_time,
+                end_time=next_time
+            )
+            
+            created_slots.append({
+                'id': time_slot.id,
+                'start_time': time_slot.start_time,
+                'end_time': time_slot.end_time
+            })
+            
+            current_time = next_time
+        
+        return Response({
+            'status': 'success',
+            'message': f'Créé {len(created_slots)} créneaux horaires',
+            'time_slots': created_slots
+        })
+    except Exception as e:
+        return Response(
+            {'status': 'failure', 'message': str(e)},
+            status=status.HTTP_400_BAD_REQUEST
+        )
