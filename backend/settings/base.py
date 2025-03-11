@@ -60,10 +60,22 @@ TEMPLATES = [
 WSGI_APPLICATION = 'backend.core.wsgi.application'
 
 # Database
-DATABASE_URL = os.environ.get('DATABASE_URL', 'sqlite:///db.sqlite3')
+import os
+
 DATABASES = {
-    'default': dj_database_url.parse(DATABASE_URL)
+    'default': {
+        'ENGINE': 'django.db.backends.postgresql',
+        'NAME': 'optimum',
+        'USER': 'optimum_owner',
+        'PASSWORD': 'npg_eRXCgxH0qcQ1',
+        'HOST': 'ep-falling-bar-a8rftqei-pooler.eastus2.azure.neon.tech',
+        'PORT': '5432',
+        'OPTIONS': {
+            'sslmode': 'require',
+        },
+    }
 }
+
 
 # Password validation
 AUTH_PASSWORD_VALIDATORS = [
