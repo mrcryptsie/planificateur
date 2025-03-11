@@ -1,8 +1,12 @@
+
 #!/usr/bin/env python
 import os
 import sys
 import django
 from django.core.management import call_command
+
+# Ajouter le répertoire courant au PYTHONPATH
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 # Configurer l'environnement Django
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'backend.settings.base')
@@ -32,7 +36,7 @@ def load_fixtures():
     print("Loading fixtures...")
     fixtures = generate_fixtures()
     print(f"Created {len(fixtures['rooms'])} rooms, {len(fixtures['proctors'])} proctors, "
-          f"{len(fixtures['exams'])} exams, and {len(fixtures['time_slots'])} time slots.")
+          f"{len(fixtures['exams'])} exams.")
 
 def run_server():
     print("Starting Django development server...")

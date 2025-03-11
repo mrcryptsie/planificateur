@@ -124,7 +124,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error fetching time slots" });
     }
   });
-  
+
   // Endpoint pour récupérer tous les créneaux horaires pour l'API
   app.get("/api/time-slots", async (_req, res) => {
     try {
@@ -135,7 +135,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error fetching time slots" });
     }
   });
-  
+
   app.post("/api/generate-timeslots", async (_req, res) => {
     try {
       const response = await axios.post('http://localhost:8000/api/exam-scheduler/generate-timeslots/');
@@ -196,7 +196,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).send('Internal server error');
     }
   });
-  
+
   // Route pour générer des créneaux horaires
   app.post("/api/generate-timeslots", async (req, res) => {
     try {
@@ -205,7 +205,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         end_time: "18:00",
         interval_minutes: 30
       });
-      
+
       res.status(200).json({ success: true, data: response.data });
     } catch (error) {
       console.error('Error generating time slots:', error);

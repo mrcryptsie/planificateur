@@ -1,6 +1,6 @@
 from datetime import datetime, timedelta
 from django.utils import timezone
-from .models import Room, Proctor, Exam, TimeSlot
+from backend.apps.exam_scheduler.models import Room, Proctor, Exam, TimeSlot
 
 def create_default_timeslots():
     """Crée des créneaux horaires par défaut si aucun n'existe"""
@@ -49,103 +49,39 @@ def create_default_timeslots():
         print(f"Créé {len(time_slots)} créneaux horaires par défaut")
 
 def generate_fixtures():
-    """
-    Génère des données initiales pour tester l'application.
-    """
-    # Supprimer les données existantes
-    TimeSlot.objects.all().delete()
-    Exam.objects.all().delete()
-    Proctor.objects.all().delete()
-    Room.objects.all().delete()
-    
+    """Générer des données d'exemple pour l'application"""
     # Créer des salles
-    rooms = [
-        Room.objects.create(
-            name="Amphi A",
-            capacity=150,
-            occupancy_rate=85,
-            status="available"
-        ),
-        Room.objects.create(
-            name="Salle 103",
-            capacity=50,
-            occupancy_rate=42,
-            status="partially_occupied"
-        ),
-        Room.objects.create(
-            name="Labo L2",
-            capacity=30,
-            occupancy_rate=95,
-            status="occupied"
-        )
-    ]
-    
-    # Créer des surveillants
-    proctors = [
-        Proctor.objects.create(
-            name="Dr. Sophie Martin",
-            department="informatique",
-            availability=["2023-06-15", "2023-06-16", "2023-06-17"],
-            avatar_url="https://randomuser.me/api/portraits/women/44.jpg"
-        ),
-        Proctor.objects.create(
-            name="Prof. Jean Dupont",
-            department="mathematiques",
-            availability=["2023-06-15", "2023-06-16"],
-            avatar_url="https://randomuser.me/api/portraits/men/32.jpg"
-        ),
-        Proctor.objects.create(
-            name="Dr. Laura Blanc",
-            department="physique",
-            availability=["2023-06-16", "2023-06-17", "2023-06-18"],
-            avatar_url="https://randomuser.me/api/portraits/women/68.jpg"
-        )
-    ]
-    
-    # Créer des examens
-    now = timezone.now()
-    exams = [
-        Exam.objects.create(
-            name="Algorithmes et Structures de Données",
-            date=now + timedelta(days=1, hours=9),
-            level="l2",
-            department="informatique",
-            duration="2h30",
-            participants=45,
-            room=rooms[1]  # Salle 103
-        ),
-        Exam.objects.create(
-            name="Analyse Mathématique",
-            date=now + timedelta(days=2, hours=14),
-            level="l1",
-            department="mathematiques",
-            duration="3h00",
-            participants=120,
-            room=rooms[0]  # Amphi A
-        ),
-        Exam.objects.create(
-            name="Mécanique Quantique",
-            date=now + timedelta(days=3, hours=10),
-            level="m1",
-            department="physique",
-            duration="4h00",
-            participants=28,
-            room=rooms[2]  # Labo L2
-        )
-    ]
-    
-    # Associer les surveillants aux examens
-    exams[0].proctors.add(proctors[0])
-    exams[1].proctors.add(proctors[1], proctors[2])
-    exams[2].proctors.add(proctors[2])
-    
-    # Créer des créneaux horaires -  This section is now handled by create_default_timeslots
-    create_default_timeslots()
+    rooms = []
+    if Room.objects.count() == 0:
+        rooms = [
+            Room.objects.create(name="A101", capacity=30, status="available"),
+            Room.objects.create(name="B202", capacity=50, status="available"),
+            Room.objects.create(name="C303", capacity=75, status="available"),
+        ]
 
+    # Créer des surveillants
+    proctors = []
+    if Proctor.objects.count() == 0:
+        proctors = [
+            Proctor.objects.create(name="Jean Dupont", email="jean.dupont@example.com"),
+            Proctor.objects.create(name="Marie Martin", email="marie.martin@example.com"),
+            Proctor.objects.create(name="Pierre Durand", email="pierre.durand@example.com"),
+        ]
+
+    # Créer des examens
+    exams = []
+    if Exam.objects.count() == 0:
+        exams = [
+            Exam.objects.create(name="Mathématiques Avancées", duration="2h00", department="Mathématiques", level="L3"),
+            Exam.objects.create(name="Introduction à la Chimie", duration="1h30", department="Chimie", level="L1"),
+            Exam.objects.create(name="Programmation Web", duration="3h00", department="Informatique", level="M1"),
+        ]
+
+    # Créer des créneaux par défaut
+    create_default_timeslots()
 
     return {
         'rooms': rooms,
         'proctors': proctors,
-        'exams': exams,
-        #'time_slots': time_slots  Removed as timeslots are now created by create_default_timeslots
+        'exams': exams
     }
