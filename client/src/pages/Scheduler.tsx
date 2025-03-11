@@ -173,16 +173,9 @@ export default function Scheduler() {
     try {
       setIsGeneratingTimeSlots(true);
       const response = await axios.post("/api/generate-timeslots");
-      
+
       if (response.data.status === 'success') {
         toast.success(response.data.message || "Créneaux horaires générés avec succès");
-        queryClient.invalidateQueries({ queryKey: ["time-slots"] });
-      } else {
-        toast.error("Erreur lors de la génération des créneaux horaires");
-      }eSlots();
-
-      if (result.success) {
-        toast.success("Créneaux horaires générés avec succès");
         queryClient.invalidateQueries({ queryKey: ["time-slots"] });
       } else {
         toast.error("Erreur lors de la génération des créneaux horaires");
@@ -335,7 +328,7 @@ export default function Scheduler() {
                           const endTime = new Date(slot.end_time);
                           const durationHours = (endTime - startTime) / (1000 * 60 * 60);
                           const durationLabel = durationHours === 1 ? "1h" : durationHours === 2 ? "2h" : "3h";
-                          
+
                           return (
                             <SelectItem key={slot.id} value={slot.id.toString()}>
                               {startTime.toLocaleString('fr-FR', {
