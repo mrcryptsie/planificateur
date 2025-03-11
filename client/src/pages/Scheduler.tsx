@@ -47,26 +47,58 @@ export default function Scheduler() {
   });
   
   // Fonction pour lancer l'optimisation
-  const handleStartOptimization = () => {
+  const handleStartOptimization = async () => {
     setIsOptimizing(true);
     setOptimizationProgress(0);
     setOptimizationResult(null);
     
-    // Simulation du processus d'optimisation
-    const interval = setInterval(() => {
-      setOptimizationProgress((prev) => {
-        const newProgress = prev + Math.random() * 10;
-        if (newProgress >= 100) {
-          clearInterval(interval);
-          setIsOptimizing(false);
-          // Décider aléatoirement du résultat pour la démonstration
-          const resultOptions: ("success" | "error" | "warning")[] = ["success", "warning", "warning"];
-          setOptimizationResult(resultOptions[Math.floor(Math.random() * resultOptions.length)]);
-          return 100;
+    try {
+      // Préparation des données pour l'API
+      const optimizationData = {
+        exams: exams.map(exam => exam.id),
+        rooms: rooms.map(room => room.id),
+        proctors: proctors.map(proctor => proctor.id),
+        constraints: {
+          avoidSameTimeForSameLevel: true,
+          avoidSameTimeForSameDepartment: true,
+          minimizeProctorCount: true,
+          ensureRoomCapacity: true
         }
-        return newProgress;
-      });
-    }, 300);
+      };
+      
+      // Simulation de la progression
+      const progressInterval = setInterval(() => {
+        setOptimizationProgress(prev => {
+          // Ne pas dépasser 95% pendant la simulation
+          return Math.min(prev + Math.random() * 5, 95);
+        });
+      }, 300);
+      
+      // Appel à l'API pour lancer l'optimisation
+      // Nous simulons cet appel pour le moment
+      await new Promise(resolve => setTimeout(resolve, 5000));
+      
+      clearInterval(progressInterval);
+      setOptimizationProgress(100);
+      
+      // Déterminer le résultat en fonction des ressources
+      let result: "success" | "error" | "warning";
+      
+      if (!hasEnoughRooms || !hasEnoughProctors) {
+        result = "warning";
+      } else if (exams.length === 0) {
+        result = "error";
+      } else {
+        result = "success";
+      }
+      
+      setOptimizationResult(result);
+    } catch (error) {
+      console.error("Erreur lors de l'optimisation:", error);
+      setOptimizationResult("error");
+    } finally {
+      setIsOptimizing(false);
+    }
   };
   
   // Vérification des ressources
