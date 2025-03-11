@@ -51,6 +51,16 @@ class ExamViewSet(viewsets.ModelViewSet):
 class TimeSlotViewSet(viewsets.ModelViewSet):
     queryset = TimeSlot.objects.all()
     serializer_class = TimeSlotSerializer
+    
+    def list(self, request, *args, **kwargs):
+        # Importer ici pour éviter les imports circulaires
+        from .fixtures import create_default_timeslots
+        
+        # Créer des créneaux par défaut si aucun n'existe
+        if TimeSlot.objects.count() == 0:
+            create_default_timeslots()
+            
+        return super().list(request, *args, **kwargs)
 
 @api_view(['GET'])
 def get_stats(request):

@@ -383,7 +383,7 @@ export default function Scheduler() {
                   </Select>
 
                   <div className="mt-2 flex flex-wrap gap-2">
-                    {selectedProctors.map(proctorId => {
+                    {Array.isArray(selectedProctors) && selectedProctors.map(proctorId => {
                       const proctor = proctors?.find(p => p.id.toString() === proctorId);
                       return (
                         <Badge key={proctorId} variant="secondary" className="flex items-center gap-1">

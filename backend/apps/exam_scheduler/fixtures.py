@@ -2,6 +2,52 @@ from datetime import datetime, timedelta
 from django.utils import timezone
 from .models import Room, Proctor, Exam, TimeSlot
 
+def create_default_timeslots():
+    """Crée des créneaux horaires par défaut si aucun n'existe"""
+    if TimeSlot.objects.count() == 0:
+        # Date actuelle
+        today = timezone.now().date()
+
+        # Définir les créneaux horaires
+        time_slots = [
+            # Jour 1
+            {"start": "08:00", "end": "09:30", "date": today},
+            {"start": "10:00", "end": "11:30", "date": today},
+            {"start": "14:00", "end": "15:30", "date": today},
+            {"start": "16:00", "end": "17:30", "date": today},
+
+            # Jour 2
+            {"start": "08:00", "end": "09:30", "date": today + timedelta(days=1)},
+            {"start": "10:00", "end": "11:30", "date": today + timedelta(days=1)},
+            {"start": "14:00", "end": "15:30", "date": today + timedelta(days=1)},
+            {"start": "16:00", "end": "17:30", "date": today + timedelta(days=1)},
+
+            # Jour 3
+            {"start": "08:00", "end": "09:30", "date": today + timedelta(days=2)},
+            {"start": "10:00", "end": "11:30", "date": today + timedelta(days=2)},
+            {"start": "14:00", "end": "15:30", "date": today + timedelta(days=2)},
+            {"start": "16:00", "end": "17:30", "date": today + timedelta(days=2)},
+        ]
+
+        # Créer les créneaux dans la base de données
+        for slot in time_slots:
+            start_hour, start_min = map(int, slot["start"].split(':'))
+            end_hour, end_min = map(int, slot["end"].split(':'))
+
+            start_datetime = datetime.combine(slot["date"], datetime.min.time().replace(hour=start_hour, minute=start_min))
+            end_datetime = datetime.combine(slot["date"], datetime.min.time().replace(hour=end_hour, minute=end_min))
+
+            # Ajouter le fuseau horaire
+            start_datetime = timezone.make_aware(start_datetime)
+            end_datetime = timezone.make_aware(end_datetime)
+
+            TimeSlot.objects.create(
+                start_time=start_datetime,
+                end_time=end_datetime
+            )
+
+        print(f"Créé {len(time_slots)} créneaux horaires par défaut")
+
 def generate_fixtures():
     """
     Génère des données initiales pour tester l'application.
@@ -93,55 +139,13 @@ def generate_fixtures():
     exams[1].proctors.add(proctors[1], proctors[2])
     exams[2].proctors.add(proctors[2])
     
-    # Créer des créneaux horaires
-    time_slots = []
-    
-    # Créneaux pour la journée 1
-    day1 = now.replace(hour=8, minute=0, second=0, microsecond=0) + timedelta(days=1)
-    time_slots.append(
-        TimeSlot.objects.create(
-            room=rooms[1],
-            start_time=day1 + timedelta(hours=9),
-            end_time=day1 + timedelta(hours=11, minutes=30),
-            exam=exams[0]
-        )
-    )
-    
-    # Créneaux pour la journée 2
-    day2 = now.replace(hour=8, minute=0, second=0, microsecond=0) + timedelta(days=2)
-    time_slots.append(
-        TimeSlot.objects.create(
-            room=rooms[0],
-            start_time=day2 + timedelta(hours=14),
-            end_time=day2 + timedelta(hours=17),
-            exam=exams[1]
-        )
-    )
-    
-    # Créneaux pour la journée 3
-    day3 = now.replace(hour=8, minute=0, second=0, microsecond=0) + timedelta(days=3)
-    time_slots.append(
-        TimeSlot.objects.create(
-            room=rooms[2],
-            start_time=day3 + timedelta(hours=10),
-            end_time=day3 + timedelta(hours=14),
-            exam=exams[2]
-        )
-    )
-    
-    # Créer des créneaux disponibles
-    for i in range(3):
-        day = now.replace(hour=8, minute=0, second=0, microsecond=0) + timedelta(days=i+1)
-        for hour in [8, 11, 15]:
-            if not (i == 0 and hour == 9) and not (i == 1 and hour == 14) and not (i == 2 and hour == 10):
-                TimeSlot.objects.create(
-                    start_time=day + timedelta(hours=hour),
-                    end_time=day + timedelta(hours=hour+2),
-                )
-    
+    # Créer des créneaux horaires -  This section is now handled by create_default_timeslots
+    create_default_timeslots()
+
+
     return {
         'rooms': rooms,
         'proctors': proctors,
         'exams': exams,
-        'time_slots': time_slots
+        #'time_slots': time_slots  Removed as timeslots are now created by create_default_timeslots
     }

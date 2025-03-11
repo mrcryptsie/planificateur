@@ -128,8 +128,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Endpoint pour récupérer tous les créneaux horaires pour l'API
   app.get("/api/time-slots", async (_req, res) => {
     try {
-      const response = await axios.get('http://localhost:8000/api/exam-scheduler/time-slots/');
-      res.json(response.data);
+      const timeSlots = await storage.getAllTimeSlots();
+      res.json(timeSlots);
     } catch (error) {
       console.error('Error fetching time slots:', error);
       res.status(500).json({ message: "Error fetching time slots" });
