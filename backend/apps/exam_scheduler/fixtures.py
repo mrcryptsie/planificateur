@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 from django.utils import timezone
 from backend.apps.exam_scheduler.models import Room, Proctor, Exam, TimeSlot
+from random import choice
 
 def create_sample_fixtures():
     """
@@ -28,7 +29,6 @@ def create_sample_fixtures():
     proctors = [
         Proctor.objects.create(
             name=f"Surveillant {i}", 
-            email=f"proctor{i}@example.com",
             department=["Informatique", "Mathématiques", "Physique"][i-1]
         ) for i in range(1, 4)
     ]
