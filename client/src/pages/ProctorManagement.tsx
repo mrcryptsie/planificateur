@@ -65,7 +65,7 @@ export default function ProctorManagement() {
     const matchesSearch = searchTerm === "" || 
       proctor.name.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesDepartment = departmentFilter === "" || 
+    const matchesDepartment = departmentFilter === "" || departmentFilter === "all" || 
       proctor.department === departmentFilter;
     
     return matchesSearch && matchesDepartment;
@@ -246,7 +246,7 @@ export default function ProctorManagement() {
                 <SelectValue placeholder="Tous les départements" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tous</SelectItem>
+                <SelectItem value="all">Tous</SelectItem>
                 {Object.entries(departmentLabels).map(([value, label]) => (
                   <SelectItem key={value} value={value}>{label}</SelectItem>
                 ))}
