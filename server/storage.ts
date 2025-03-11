@@ -51,6 +51,9 @@ export interface IStorage {
   
   // Stats
   getStats(): Promise<Stats>;
+  
+  // Scheduling
+  scheduleExams(): Promise<{ status: string; scheduled_exams: number }>;
 }
 
 export class MemStorage implements IStorage {
@@ -260,6 +263,58 @@ export class MemStorage implements IStorage {
       timeSlotBalance: 64, // Mocked value
       examsByDepartment,
     };
+  }
+  
+  // Planification des examens
+  async scheduleExams(): Promise<{ status: string; scheduled_exams: number }> {
+    try {
+      // Récupérer les examens non assignés
+      const unassignedExams = Array.from(this.exams.values()).filter(exam => !exam.roomId);
+      
+      if (unassignedExams.length === 0) {
+        return { status: 'success', scheduled_exams: 0 };
+      }
+      
+      // Récupérer les salles disponibles
+      const availableRooms = Array.from(this.rooms.values()).filter(room => room.status !== 'occupied');
+      
+      // Récupérer les surveillants
+      const availableProctors = Array.from(this.proctors.values());
+      
+      // Simuler l'assignation (normalement fait par l'algorithme d'optimisation)
+      for (let i = 0; i < unassignedExams.length; i++) {
+        const exam = unassignedExams[i];
+        
+        // S'il n'y a plus de salles disponibles, on arrête
+        if (i >= availableRooms.length) break;
+        
+        // Assigner une salle
+        const room = availableRooms[i];
+        exam.roomId = room.id;
+        
+        // Assigner des surveillants (1 ou 2 selon disponibilité)
+        const proctorIndices = [i % availableProctors.length];
+        if (availableProctors.length > i + 1) {
+          proctorIndices.push((i + 1) % availableProctors.length);
+        }
+        exam.proctorIds = proctorIndices.map(idx => availableProctors[idx].id);
+        
+        // Mettre à jour l'examen
+        this.exams.set(exam.id, exam);
+        
+        // Mettre à jour la salle
+        room.status = 'occupied';
+        this.rooms.set(room.id, room);
+      }
+      
+      return {
+        status: 'success',
+        scheduled_exams: Math.min(unassignedExams.length, availableRooms.length)
+      };
+    } catch (error) {
+      console.error("Erreur lors de la planification:", error);
+      return { status: 'error', scheduled_exams: 0 };
+    }
   }
 }
 

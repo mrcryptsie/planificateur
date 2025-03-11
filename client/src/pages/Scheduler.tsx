@@ -1,138 +1,134 @@
-import { useState } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
-import { useToast } from "@/hooks/use-toast";
-import { Exam, Room, Proctor } from "@shared/schema";
-import { 
-  LucideCalendar, 
-  LucideSettings,
-  LucidePlay,
-  LucideLoader,
-  LucideCheck,
-  LucideX,
-  LucideAlertTriangle,
-  LucideHome,
-  LucideUsers,
-  LucideDownload
-} from "lucide-react";
+
+import React, { useState } from 'react';
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useToast } from '@/components/ui/use-toast';
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card';
 import {
   Tabs,
   TabsContent,
   TabsList,
   TabsTrigger,
-} from "@/components/ui/tabs";
-import { Progress } from "@/components/ui/progress";
-import { Badge } from "@/components/ui/badge";
+} from '@/components/ui/tabs';
+import { Button } from '@/components/ui/button';
+import {
+  LucidePlay,
+  LucideLoader,
+  LucideCheck,
+  LucideAlertCircle,
+  LucideCalendar,
+  LucideUsers,
+  LucideBuildingSquare,
+  LucideTimer,
+  LucideSettings,
+  LucideBookOpen,
+} from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Separator } from "@/components/ui/separator";
+import axios from 'axios';
+
+interface Room {
+  id: number;
+  name: string;
+  capacity: number;
+  status: string;
+}
+
+interface Proctor {
+  id: number;
+  name: string;
+  department: string;
+}
+
+interface Exam {
+  id: number;
+  name: string;
+  level: string;
+  department: string;
+  duration: string;
+  date: string;
+  roomId: number | null;
+  participants: number;
+  proctorIds: number[] | null;
+}
 
 export default function Scheduler() {
-  const { toast } = useToast();
   const [isOptimizing, setIsOptimizing] = useState(false);
-  const [optimizationProgress, setOptimizationProgress] = useState(0);
-  const [optimizationResult, setOptimizationResult] = useState<"success" | "error" | "warning" | null>(null);
+  const [optimizationResult, setOptimizationResult] = useState<{
+    status: string;
+    scheduled_exams: number;
+  } | null>(null);
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
 
-  // Récupérer les examens, salles et surveillants
+  // Récupérer les données
   const { data: exams = [] } = useQuery<Exam[]>({
-    queryKey: ["/api/exams"],
+    queryKey: ['/api/exams'],
   });
 
   const { data: rooms = [] } = useQuery<Room[]>({
-    queryKey: ["/api/rooms"],
+    queryKey: ['/api/rooms'],
   });
 
   const { data: proctors = [] } = useQuery<Proctor[]>({
-    queryKey: ["/api/proctors"],
+    queryKey: ['/api/proctors'],
   });
 
-  // Fonction pour lancer l'optimisation
-  const handleStartOptimization = async () => {
-    setIsOptimizing(true);
-    setOptimizationProgress(0);
-    setOptimizationResult(null);
-
-    try {
-      // Initialiser l'intervalle de progression
-      const progressInterval = setInterval(() => {
-        setOptimizationProgress(prev => {
-          // Ne pas dépasser 95% pendant la simulation
-          return Math.min(prev + Math.random() * 5, 95);
-        });
-      }, 300);
-
-      // Appel à l'API pour lancer l'optimisation
-      const response = await fetch('/api/schedule/', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          exams: exams.map(exam => exam.id),
-          rooms: rooms.map(room => room.id),
-          proctors: proctors.map(proctor => proctor.id),
-          constraints: {
-            avoidSameTimeForSameLevel: true,
-            avoidSameTimeForSameDepartment: true,
-            minimizeProctorCount: true,
-            ensureRoomCapacity: true
-          }
-        })
+  // Mutation pour l'optimisation
+  const optimizeMutation = useMutation({
+    mutationFn: async () => {
+      const response = await axios.post('/api/schedule');
+      return response.data;
+    },
+    onSuccess: (data) => {
+      setOptimizationResult(data);
+      toast({
+        title: "Planification terminée",
+        description: `${data.scheduled_exams} examens ont été planifiés avec succès.`,
       });
-
-      clearInterval(progressInterval);
-      setOptimizationProgress(100);
-
-      // Analyser la réponse
-      const data = await response.json();
-
-      if (response.ok) {
-        if (data.status === 'success') {
-          setOptimizationResult("success");
-          toast({
-            title: "Planification réussie",
-            description: `${data.scheduled_exams} examens ont été planifiés avec succès.`,
-            variant: "success",
-          });
-        } else if (data.status === 'partial') {
-          setOptimizationResult("warning");
-          toast({
-            title: "Planification partielle",
-            description: data.message || "Certains examens n'ont pas pu être planifiés.",
-            variant: "warning",
-          });
-        } else {
-          setOptimizationResult("error");
-          toast({
-            title: "Échec de la planification",
-            description: data.message || "Impossible de créer un planning valide.",
-            variant: "destructive",
-          });
-        }
-      } else {
-        setOptimizationResult("error");
-        toast({
-          title: "Erreur",
-          description: data.message || "Une erreur s'est produite lors de la planification.",
-          variant: "destructive",
-        });
-      }
-    } catch (error) {
-      console.error("Erreur lors de l'optimisation:", error);
-      setOptimizationResult("error");
+      queryClient.invalidateQueries({ queryKey: ['/api/exams'] });
+    },
+    onError: () => {
       toast({
         title: "Erreur",
-        description: "Une erreur s'est produite lors de la communication avec le serveur.",
+        description: "La planification a échoué. Veuillez réessayer.",
         variant: "destructive",
       });
-    } finally {
+    },
+    onSettled: () => {
       setIsOptimizing(false);
     }
+  });
+
+  const handleStartOptimization = () => {
+    setIsOptimizing(true);
+    optimizeMutation.mutate();
   };
 
+  // Statistiques pour le tableau de bord
+  const unassignedExams = exams.filter(exam => exam.roomId === null).length;
+  const assignedExams = exams.length - unassignedExams;
+  const assignmentRate = exams.length > 0 ? Math.round((assignedExams / exams.length) * 100) : 0;
+
   // Vérification des ressources
-  const hasEnoughRooms = rooms.length >= exams.length;
-  const hasEnoughProctors = proctors.length >= exams.length;
+  const hasEnoughRooms = rooms.length >= unassignedExams;
+  const hasEnoughProctors = proctors.length >= unassignedExams;
   const hasAssignedRooms = exams.some(exam => exam.roomId !== null);
   const hasAssignedProctors = exams.some(exam => exam.proctorIds !== null && exam.proctorIds.length > 0);
 
@@ -140,23 +136,63 @@ export default function Scheduler() {
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <h1 className="text-3xl font-bold">Planificateur d'Examens</h1>
-        <Button 
-          disabled={isOptimizing || exams.length === 0}
-          className="bg-primary-600 hover:bg-primary-700"
-          onClick={handleStartOptimization}
-        >
-          {isOptimizing ? (
-            <>
-              <LucideLoader className="mr-2 h-4 w-4 animate-spin" />
-              Optimisation en cours...
-            </>
-          ) : (
-            <>
-              <LucidePlay className="mr-2 h-4 w-4" />
-              Lancer l'optimisation
-            </>
-          )}
-        </Button>
+        
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button 
+              disabled={isOptimizing || exams.length === 0 || unassignedExams === 0}
+              className="bg-primary-600 hover:bg-primary-700"
+            >
+              {isOptimizing ? (
+                <>
+                  <LucideLoader className="mr-2 h-4 w-4 animate-spin" />
+                  Optimisation en cours...
+                </>
+              ) : (
+                <>
+                  <LucidePlay className="mr-2 h-4 w-4" />
+                  Lancer l'optimisation
+                </>
+              )}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Lancer la planification</AlertDialogTitle>
+              <AlertDialogDescription>
+                Vous êtes sur le point de lancer la planification automatique des examens.
+                Cette action va affecter des salles et des surveillants aux examens non-assignés.
+                {!hasEnoughRooms && (
+                  <Alert className="mt-4 bg-yellow-50 border-yellow-200">
+                    <LucideAlertCircle className="h-4 w-4 text-yellow-600" />
+                    <AlertTitle className="text-yellow-600">Attention</AlertTitle>
+                    <AlertDescription className="text-yellow-600">
+                      Il n'y a pas assez de salles disponibles pour tous les examens.
+                    </AlertDescription>
+                  </Alert>
+                )}
+                {!hasEnoughProctors && (
+                  <Alert className="mt-4 bg-yellow-50 border-yellow-200">
+                    <LucideAlertCircle className="h-4 w-4 text-yellow-600" />
+                    <AlertTitle className="text-yellow-600">Attention</AlertTitle>
+                    <AlertDescription className="text-yellow-600">
+                      Il n'y a pas assez de surveillants disponibles pour tous les examens.
+                    </AlertDescription>
+                  </Alert>
+                )}
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annuler</AlertDialogCancel>
+              <AlertDialogAction 
+                onClick={handleStartOptimization}
+                className="bg-primary-600 hover:bg-primary-700"
+              >
+                Lancer
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
       </div>
 
       <Tabs defaultValue="dashboard" className="w-full">
@@ -165,296 +201,261 @@ export default function Scheduler() {
           <TabsTrigger value="configuration">Configuration</TabsTrigger>
           <TabsTrigger value="results">Résultats</TabsTrigger>
         </TabsList>
-
-        <TabsContent value="dashboard" className="mt-6 space-y-6">
+        
+        <TabsContent value="dashboard">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Examens</CardTitle>
+                <CardTitle className="text-xl">Examens</CardTitle>
+                <CardDescription>
+                  Aperçu des examens à planifier
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">{exams.length}</div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {hasAssignedRooms 
-                    ? `${exams.filter(e => e.roomId !== null).length} avec salle assignée` 
-                    : "Aucun examen avec salle assignée"}
-                </p>
+                <div className="flex flex-col gap-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500">Total des examens</span>
+                    <span className="font-semibold">{exams.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500">Examens assignés</span>
+                    <span className="font-semibold text-green-600">{assignedExams}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500">Examens non assignés</span>
+                    <span className="font-semibold text-red-600">{unassignedExams}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500">Taux d'assignation</span>
+                    <span className="font-semibold">{assignmentRate}%</span>
+                  </div>
+                </div>
               </CardContent>
-              <CardFooter className="pt-0">
-                <LucideCalendar className="h-5 w-5 text-primary-500" />
-              </CardFooter>
             </Card>
-
+            
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Salles</CardTitle>
+                <CardTitle className="text-xl">Ressources</CardTitle>
+                <CardDescription>
+                  Salles et surveillants disponibles
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">{rooms.length}</div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {hasEnoughRooms 
-                    ? "Suffisant pour tous les examens" 
-                    : `Manque ${exams.length - rooms.length} salles`}
-                </p>
+                <div className="flex flex-col gap-3">
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500">Salles disponibles</span>
+                    <span className="font-semibold">{rooms.filter(r => r.status !== 'occupied').length} / {rooms.length}</span>
+                  </div>
+                  <div className="flex justify-between items-center">
+                    <span className="text-sm text-gray-500">Surveillants disponibles</span>
+                    <span className="font-semibold">{proctors.length}</span>
+                  </div>
+                  <div className="flex items-center mt-2">
+                    <div className={`w-4 h-4 rounded-full mr-2 ${hasEnoughRooms ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                    <span className="text-sm">{hasEnoughRooms ? 'Salles suffisantes' : 'Salles insuffisantes'}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className={`w-4 h-4 rounded-full mr-2 ${hasEnoughProctors ? 'bg-green-500' : 'bg-yellow-500'}`}></div>
+                    <span className="text-sm">{hasEnoughProctors ? 'Surveillants suffisants' : 'Surveillants insuffisants'}</span>
+                  </div>
+                </div>
               </CardContent>
-              <CardFooter className="pt-0">
-                <LucideHome className="h-5 w-5 text-primary-500" />
-              </CardFooter>
             </Card>
-
+            
             <Card>
               <CardHeader className="pb-2">
-                <CardTitle className="text-lg">Surveillants</CardTitle>
+                <CardTitle className="text-xl">Statut</CardTitle>
+                <CardDescription>
+                  État de la planification
+                </CardDescription>
               </CardHeader>
               <CardContent>
-                <div className="text-3xl font-bold">{proctors.length}</div>
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  {hasEnoughProctors 
-                    ? "Suffisant pour tous les examens" 
-                    : `Manque ${exams.length - proctors.length} surveillants`}
-                </p>
+                <div className="flex flex-col gap-3">
+                  <div className="flex items-center">
+                    <div className={`w-4 h-4 rounded-full mr-2 ${hasAssignedRooms ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                    <span className="text-sm">Salles assignées</span>
+                  </div>
+                  <div className="flex items-center">
+                    <div className={`w-4 h-4 rounded-full mr-2 ${hasAssignedProctors ? 'bg-green-500' : 'bg-gray-300'}`}></div>
+                    <span className="text-sm">Surveillants assignés</span>
+                  </div>
+                </div>
+                
+                {optimizationResult && (
+                  <div className="mt-6 p-3 bg-green-50 border border-green-200 rounded-md">
+                    <div className="flex items-center">
+                      <LucideCheck className="text-green-600 mr-2" />
+                      <span className="text-sm font-medium text-green-700">Optimisation réussie</span>
+                    </div>
+                    <p className="text-sm text-green-600 mt-1">
+                      {optimizationResult.scheduled_exams} examens planifiés
+                    </p>
+                  </div>
+                )}
               </CardContent>
-              <CardFooter className="pt-0">
-                <LucideUsers className="h-5 w-5 text-primary-500" />
-              </CardFooter>
             </Card>
           </div>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>État du planificateur</CardTitle>
-              <CardDescription>Préparation et vérification des ressources</CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-6">
-              {exams.length === 0 ? (
-                <Alert variant="destructive">
-                  <LucideAlertTriangle className="h-4 w-4" />
-                  <AlertTitle>Aucun examen</AlertTitle>
-                  <AlertDescription>
-                    Vous devez ajouter des examens avant de pouvoir lancer l'optimisation.
-                  </AlertDescription>
-                </Alert>
-              ) : (
-                <>
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Salles disponibles</span>
-                      <span>{hasEnoughRooms ? 
-                        <Badge variant="outline" className="bg-green-50 text-green-700">Suffisant</Badge> : 
-                        <Badge variant="outline" className="bg-amber-50 text-amber-700">Insuffisant</Badge>}
-                      </span>
+        </TabsContent>
+        
+        <TabsContent value="configuration">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Paramètres de planification</CardTitle>
+                <CardDescription>
+                  Ajustez les paramètres pour optimiser la planification
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="grid grid-cols-1 gap-4">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <LucideCalendar className="w-5 h-5 mr-2 text-gray-500" />
+                      <span>Plage horaire maximale</span>
                     </div>
-                    <Progress value={hasEnoughRooms ? 100 : (rooms.length / exams.length) * 100} className="h-2" />
+                    <span className="font-medium">8h - 18h</span>
                   </div>
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Surveillants disponibles</span>
-                      <span>{hasEnoughProctors ? 
-                        <Badge variant="outline" className="bg-green-50 text-green-700">Suffisant</Badge> : 
-                        <Badge variant="outline" className="bg-amber-50 text-amber-700">Insuffisant</Badge>}
-                      </span>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <LucideTimer className="w-5 h-5 mr-2 text-gray-500" />
+                      <span>Pause entre examens</span>
                     </div>
-                    <Progress value={hasEnoughProctors ? 100 : (proctors.length / exams.length) * 100} className="h-2" />
+                    <span className="font-medium">30 minutes</span>
                   </div>
-
-                  <div className="space-y-2">
-                    <div className="flex justify-between">
-                      <span>Contraintes temporelles</span>
-                      <Badge variant="outline" className="bg-green-50 text-green-700">OK</Badge>
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <LucideUsers className="w-5 h-5 mr-2 text-gray-500" />
+                      <span>Surveillants par examen</span>
                     </div>
-                    <Progress value={100} className="h-2" />
+                    <span className="font-medium">Min. 1</span>
                   </div>
-                </>
-              )}
-
-              {optimizationResult && (
-                <div className="mt-6">
-                  <Separator className="my-4" />
-                  <div className="mt-4">
-                    <h3 className="text-lg font-medium mb-2">Dernier résultat</h3>
-
-                    {optimizationResult === "success" && (
-                      <Alert className="bg-green-50 border-green-200">
-                        <LucideCheck className="h-4 w-4 text-green-600" />
-                        <AlertTitle className="text-green-700">Optimisation réussie</AlertTitle>
-                        <AlertDescription className="text-green-600">
-                          Tous les examens ont été planifiés avec succès. Vous pouvez consulter les résultats dans l'onglet "Résultats".
-                        </AlertDescription>
-                      </Alert>
-                    )}
-
-                    {optimizationResult === "warning" && (
-                      <Alert className="bg-amber-50 border-amber-200">
-                        <LucideAlertTriangle className="h-4 w-4 text-amber-600" />
-                        <AlertTitle className="text-amber-700">Optimisation partielle</AlertTitle>
-                        <AlertDescription className="text-amber-600">
-                          Certains examens n'ont pas pu être planifiés en raison de contraintes conflictuelles. Veuillez consulter les résultats et résoudre les conflits.
-                        </AlertDescription>
-                      </Alert>
-                    )}
-
-                    {optimizationResult === "error" && (
-                      <Alert variant="destructive">
-                        <LucideX className="h-4 w-4" />
-                        <AlertTitle>Optimisation échouée</AlertTitle>
-                        <AlertDescription>
-                          L'optimisation a échoué en raison de contraintes incompatibles. Veuillez ajuster les paramètres et réessayer.
-                        </AlertDescription>
-                      </Alert>
-                    )}
+                  
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center">
+                      <LucideBuildingSquare className="w-5 h-5 mr-2 text-gray-500" />
+                      <span>Utilisation des salles</span>
+                    </div>
+                    <span className="font-medium">Optimale</span>
                   </div>
                 </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="configuration" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Paramètres d'optimisation</CardTitle>
-              <CardDescription>
-                Configurez les paramètres de l'algorithme d'optimisation
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              <div className="flex items-center justify-center py-12">
-                <div className="text-center">
-                  <LucideSettings className="mx-auto h-12 w-12 text-gray-400" />
-                  <h3 className="mt-2 text-lg font-medium">Paramètres avancés</h3>
-                  <p className="mt-1 text-sm text-gray-500">
-                    Cette fonctionnalité sera disponible prochainement.
-                  </p>
+              </CardContent>
+              <CardFooter className="border-t pt-6">
+                <Button variant="outline" className="w-full">
+                  <LucideSettings className="w-4 h-4 mr-2" />
+                  Personnaliser
+                </Button>
+              </CardFooter>
+            </Card>
+            
+            <Card>
+              <CardHeader>
+                <CardTitle>Contraintes</CardTitle>
+                <CardDescription>
+                  Règles appliquées lors de la planification
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-2">
+                  <div className="flex items-start">
+                    <LucideCheck className="w-5 h-5 mr-2 text-green-600 flex-shrink-0 mt-0.5" />
+                    <span>Pas d'examens simultanés pour une même promotion</span>
+                  </div>
+                  
+                  <div className="flex items-start">
+                    <LucideCheck className="w-5 h-5 mr-2 text-green-600 flex-shrink-0 mt-0.5" />
+                    <span>Un surveillant ne peut pas surveiller deux examens en même temps</span>
+                  </div>
+                  
+                  <div className="flex items-start">
+                    <LucideCheck className="w-5 h-5 mr-2 text-green-600 flex-shrink-0 mt-0.5" />
+                    <span>Capacité des salles respectée selon le nombre de participants</span>
+                  </div>
+                  
+                  <div className="flex items-start">
+                    <LucideCheck className="w-5 h-5 mr-2 text-green-600 flex-shrink-0 mt-0.5" />
+                    <span>Les examens d'une même filière ne peuvent pas être en même temps</span>
+                  </div>
+                  
+                  <div className="flex items-start">
+                    <LucideCheck className="w-5 h-5 mr-2 text-green-600 flex-shrink-0 mt-0.5" />
+                    <span>Respect des disponibilités des surveillants</span>
+                  </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
+              </CardContent>
+            </Card>
+          </div>
         </TabsContent>
-
-        <TabsContent value="results" className="mt-6">
+        
+        <TabsContent value="results">
           <Card>
             <CardHeader>
-              <CardTitle>Résultats de l'optimisation</CardTitle>
+              <CardTitle>Résultats de la planification</CardTitle>
               <CardDescription>
-                {isOptimizing 
-                  ? "Optimisation en cours..." 
-                  : optimizationResult 
-                    ? "Résultats de la dernière optimisation" 
-                    : "Lancez une optimisation pour voir les résultats"}
+                Visualisez les examens planifiés
               </CardDescription>
             </CardHeader>
             <CardContent>
-              {isOptimizing ? (
-                <div className="space-y-4">
-                  <div className="flex justify-between text-sm">
-                    <span>Progression</span>
-                    <span>{Math.round(optimizationProgress)}%</span>
-                  </div>
-                  <Progress value={optimizationProgress} className="h-2" />
-                  <div className="flex justify-center py-8">
-                    <div className="text-center">
-                      <LucideLoader className="mx-auto h-12 w-12 text-primary-500 animate-spin" />
-                      <h3 className="mt-4 text-lg font-medium">Optimisation en cours</h3>
-                      <p className="mt-1 text-sm text-gray-500">
-                        Veuillez patienter pendant que l'algorithme trouve la meilleure solution...
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : optimizationResult ? (
-                <div className="space-y-4">
-                  {optimizationResult === "success" && (
-                    <div className="space-y-6">
-                      <Alert className="bg-green-50 border-green-200">
-                        <LucideCheck className="h-4 w-4 text-green-600" />
-                        <AlertTitle className="text-green-700">Planification complète</AlertTitle>
-                        <AlertDescription className="text-green-600">
-                          Tous les examens ont été planifiés avec succès.
-                        </AlertDescription>
-                      </Alert>
-
-                      <div className="flex justify-center py-4">
-                        <Button className="mr-2">
-                          <LucideCalendar className="mr-2 h-4 w-4" />
-                          Voir le calendrier
-                        </Button>
-                        <Button variant="outline">
-                          <LucideDownload className="mr-2 h-4 w-4" />
-                          Exporter
-                        </Button>
+              {exams.length > 0 && exams.some(e => e.roomId) ? (
+                <div className="space-y-6">
+                  {exams.filter(e => e.roomId).map(exam => {
+                    const room = rooms.find(r => r.id === exam.roomId);
+                    const examProctors = exam.proctorIds 
+                      ? proctors.filter(p => exam.proctorIds?.includes(p.id))
+                      : [];
+                    
+                    return (
+                      <div key={exam.id} className="border rounded-lg p-4 shadow-sm">
+                        <div className="flex items-center justify-between mb-2">
+                          <div className="flex items-center">
+                            <LucideBookOpen className="text-primary-600 mr-2" />
+                            <h3 className="font-medium">{exam.name}</h3>
+                          </div>
+                          <span className="text-sm bg-primary-100 text-primary-800 px-2 py-1 rounded">
+                            {exam.level.toUpperCase()}
+                          </span>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4 mt-4">
+                          <div>
+                            <p className="text-sm text-gray-500">Salle</p>
+                            <p className="font-medium">{room?.name || "Non assignée"}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Date</p>
+                            <p className="font-medium">
+                              {new Date(exam.date).toLocaleDateString('fr-FR')}
+                            </p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Durée</p>
+                            <p className="font-medium">{exam.duration}</p>
+                          </div>
+                          <div>
+                            <p className="text-sm text-gray-500">Participants</p>
+                            <p className="font-medium">{exam.participants}</p>
+                          </div>
+                          <div className="col-span-2">
+                            <p className="text-sm text-gray-500">Surveillants</p>
+                            <p className="font-medium">
+                              {examProctors.length > 0 
+                                ? examProctors.map(p => p.name).join(", ") 
+                                : "Non assignés"}
+                            </p>
+                          </div>
+                        </div>
                       </div>
-                    </div>
-                  )}
-
-                  {optimizationResult === "warning" && (
-                    <div className="space-y-6">
-                      <Alert className="bg-amber-50 border-amber-200">
-                        <LucideAlertTriangle className="h-4 w-4 text-amber-600" />
-                        <AlertTitle className="text-amber-700">Planification partielle</AlertTitle>
-                        <AlertDescription className="text-amber-600">
-                          Certains examens n'ont pas pu être planifiés en raison de contraintes conflictuelles.
-                        </AlertDescription>
-                      </Alert>
-
-                      <div className="flex justify-center py-4">
-                        <Button className="mr-2" variant="outline" onClick={() => {
-                          toast({
-                            title: "Résolution de conflits",
-                            description: "Cette fonctionnalité sera disponible prochainement.",
-                          });
-                        }}>
-                          <LucideAlertTriangle className="mr-2 h-4 w-4" />
-                          Résoudre les conflits
-                        </Button>
-                        <Button variant="outline">
-                          <LucideDownload className="mr-2 h-4 w-4" />
-                          Exporter les résultats partiels
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-
-                  {optimizationResult === "error" && (
-                    <div className="space-y-6">
-                      <Alert variant="destructive">
-                        <LucideX className="h-4 w-4" />
-                        <AlertTitle>Planification impossible</AlertTitle>
-                        <AlertDescription>
-                          L'optimisation a échoué en raison de contraintes incompatibles. Veuillez ajuster les paramètres et réessayer.
-                        </AlertDescription>
-                      </Alert>
-
-                      <div className="flex justify-center py-4">
-                        <Button 
-                          className="mr-2" 
-                          variant="outline" 
-                          onClick={() => {
-                            toast({
-                              title: "Aide à la résolution",
-                              description: "Cette fonctionnalité sera disponible prochainement.",
-                            });
-                          }}
-                        >
-                          <LucideAlertTriangle className="mr-2 h-4 w-4" />
-                          Voir les problèmes
-                        </Button>
-                      </div>
-                    </div>
-                  )}
+                    );
+                  })}
                 </div>
               ) : (
-                <div className="flex justify-center items-center py-12">
-                  <div className="text-center">
-                    <LucidePlay className="mx-auto h-12 w-12 text-gray-400" />
-                    <h3 className="mt-2 text-lg font-medium">Aucun résultat disponible</h3>
-                    <p className="mt-1 text-sm text-gray-500">
-                      Lancez une optimisation pour voir les résultats.
-                    </p>
-                    <Button className="mt-4" onClick={handleStartOptimization} disabled={isOptimizing || exams.length === 0}>
-                      Lancer l'optimisation
-                    </Button>
-                  </div>
+                <div className="text-center py-12">
+                  <LucideCalendar className="w-12 h-12 mx-auto text-gray-300 mb-4" />
+                  <h3 className="text-lg font-medium">Aucun examen planifié</h3>
+                  <p className="text-sm text-gray-500 mt-2">
+                    Lancez l'optimisation pour planifier les examens
+                  </p>
                 </div>
               )}
             </CardContent>

@@ -142,6 +142,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error fetching stats" });
     }
   });
+  
+  // API Route pour la planification des examens
+  app.post("/api/schedule", async (_req, res) => {
+    try {
+      // Simuler l'appel à l'algorithme d'optimisation
+      const result = await storage.scheduleExams();
+      res.json(result);
+    } catch (error) {
+      res.status(500).json({ message: "Erreur lors de la planification des examens" });
+    }
+  });
 
   const httpServer = createServer(app);
   return httpServer;
