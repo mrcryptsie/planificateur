@@ -44,7 +44,7 @@ export default function Header() {
               <path d="M4.75 12L12 16.25L19.25 12" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/>
             </svg>
             <Link href="/">
-              <a className="ml-2 text-xl font-semibold text-gray-900 dark:text-white cursor-pointer">ExamScheduler</a>
+              <span className="ml-2 text-xl font-semibold text-gray-900 dark:text-white cursor-pointer">ExamScheduler</span>
             </Link>
           </div>
           
@@ -52,7 +52,7 @@ export default function Header() {
           <nav className="hidden md:ml-8 md:flex md:space-x-4">
             {navItems.map((item) => (
               <Link key={item.path} href={item.path}>
-                <a className={`inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-150 
+                <div className={`inline-flex items-center px-3 py-2 rounded-md text-sm font-medium transition-colors duration-150 cursor-pointer
                   ${location === item.path 
                     ? 'bg-primary-100 dark:bg-primary-900 text-primary-700 dark:text-primary-300' 
                     : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-gray-900 dark:hover:text-white'
@@ -60,7 +60,7 @@ export default function Header() {
                 >
                   {item.icon}
                   <span className="ml-1.5">{item.title}</span>
-                </a>
+                </div>
               </Link>
             ))}
           </nav>
