@@ -15,7 +15,11 @@ def create_sample_fixtures():
 
     # Créer quelques salles
     rooms = [
-        Room.objects.create(name=f"Salle {i}", capacity=30 + i*10, location=f"Bâtiment {i}") 
+        Room.objects.create(
+            name=f"Salle {i}", 
+            capacity=30 + i*10, 
+            status='available'
+        ) 
         for i in range(1, 4)
     ]
     fixtures['rooms'] = rooms
