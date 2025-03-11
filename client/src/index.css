@@ -1,0 +1,116 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --background: 0 0% 98%;
+    --foreground: 222 47% 11.2%;
+    
+    --muted: 210 40% 96.1%;
+    --muted-foreground: 215.4 16.3% 46.9%;
+    
+    --popover: 0 0% 100%;
+    --popover-foreground: 222.2 47.4% 11.2%;
+    
+    --border: 214.3 31.8% 91.4%;
+    --input: 214.3 31.8% 91.4%;
+    
+    --card: 0 0% 100%;
+    --card-foreground: 222.2 47.4% 11.2%;
+    
+    --primary: 222.2 47.4% 55.2%;
+    --primary-foreground: 210 40% 98%;
+    
+    --secondary: 160 84% 39%;
+    --secondary-foreground: 210 40% 98%;
+    
+    --accent: 24.6 95% 53.1%;
+    --accent-foreground: 210 40% 98%;
+    
+    --destructive: 0 100% 50%;
+    --destructive-foreground: 210 40% 98%;
+    
+    --ring: 215 20.2% 65.1%;
+    
+    --radius: 0.5rem;
+    
+    --chart-1: 222.2 47.4% 55.2%;
+    --chart-2: 160 84% 39%;
+    --chart-3: 24.6 95% 53.1%;
+    --chart-4: 262.1 83.3% 57.8%;
+    --chart-5: 48.5 96.6% 53.1%;
+  }
+  
+  * {
+    @apply border-border;
+  }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+  
+  body {
+    @apply bg-gray-50 text-foreground font-montserrat antialiased;
+  }
+  
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  
+  ::-webkit-scrollbar-track {
+    background: #f1f1f1;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    background: hsl(var(--primary));
+    border-radius: 3px;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--primary) / 0.8);
+  }
+}
+
+@layer components {
+  /* Card hover animation */
+  .exam-card {
+    @apply transition-all duration-300;
+  }
+  
+  .exam-card:hover {
+    @apply -translate-y-1 shadow-card-hover;
+  }
+  
+  /* Neon button effects */
+  .btn-neon:hover {
+    @apply shadow-neon;
+  }
+  
+  .btn-neon-accent:hover {
+    @apply shadow-neon-accent;
+  }
+}
+
+@layer utilities {
+  .shadow-card {
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+  }
+  
+  .shadow-card-hover {
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.15);
+  }
+  
+  .shadow-neon {
+    box-shadow: 0 0 15px rgba(99, 102, 241, 0.8);
+  }
+  
+  .shadow-neon-accent {
+    box-shadow: 0 0 15px rgba(249, 115, 22, 0.8);
+  }
+  
+  .font-montserrat {
+    font-family: 'Montserrat', sans-serif;
+  }
+}
