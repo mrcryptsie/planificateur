@@ -2,7 +2,7 @@ from django.urls import path, include
 from rest_framework.routers import DefaultRouter
 from .views import (
     RoomViewSet, ProctorViewSet, ExamViewSet, 
-    TimeSlotViewSet, get_stats, schedule_exams
+    TimeSlotViewSet, get_stats, schedule_exams, manual_schedule
 )
 
 router = DefaultRouter()

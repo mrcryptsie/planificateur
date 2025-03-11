@@ -4,7 +4,7 @@ import * as path from "path";
 import { fileURLToPath } from "url";
 import { createServer } from "http";
 import * as vite from "./vite";
-import { setupRoutes } from "./routes";
+import { registerRoutes } from "./routes";
 import { setupStorage } from "./storage";
 import axios from "axios";
 
@@ -52,7 +52,7 @@ const log = (message: string) => {
     next();
   });
 
-  const server = await setupRoutes(app);
+  const server = await registerRoutes(app);
 
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
