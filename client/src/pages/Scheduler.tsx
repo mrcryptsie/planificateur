@@ -326,10 +326,14 @@ export default function Scheduler() {
                             {new Date(slot.start_time).toLocaleString('fr-FR', {
                               weekday: 'long',
                               day: 'numeric',
-                              month: 'long',
+                              month: 'long'
+                            })} ({new Date(slot.start_time).toLocaleTimeString('fr-FR', {
                               hour: '2-digit',
                               minute: '2-digit'
-                            })}
+                            })} - {new Date(slot.end_time).toLocaleTimeString('fr-FR', {
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })})
                           </SelectItem>
                         ))
                       )}
