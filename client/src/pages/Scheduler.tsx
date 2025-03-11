@@ -1,30 +1,59 @@
-import { useState, useEffect } from "react";
-import { useQuery } from "@tanstack/react-query";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { useForm } from "react-hook-form";
+import { z } from "zod";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import {
+  LucideCalendar,
+  LucideSettings,
+  LucideUser,
+  LucideHome,
+  LucideClock,
+} from "lucide-react";
+import axios from "axios";
+
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardFooter,
+  CardHeader,
+  CardTitle,
+} from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { useToast } from "@/hooks/use-toast";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { 
-  Select, 
-  SelectContent, 
-  SelectItem, 
-  SelectTrigger, 
-  SelectValue 
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { LucideSettings, LucideCalendar, LucideHome, LucideUser, LucideBook, LucideAlertCircle, LucideCheck } from "lucide-react";
+import { toast } from "react-toastify";
+import { createTimeSlots } from "../utils/timeSlots";
+import { useToast } from "@/hooks/use-toast";
+import { LucideAlertCircle, LucideCheck } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Skeleton } from "@/components/ui/skeleton";
 
+
 export default function Scheduler() {
   const { toast } = useToast();
+  const [schedulingInProgress, setSchedulingInProgress] = useState(false);
   const [selectedExam, setSelectedExam] = useState("");
   const [selectedRoom, setSelectedRoom] = useState("");
   const [selectedTimeSlot, setSelectedTimeSlot] = useState("");
   const [selectedProctors, setSelectedProctors] = useState<string[]>([]);
-  const [schedulingInProgress, setSchedulingInProgress] = useState(false);
+  const [isGeneratingTimeSlots, setIsGeneratingTimeSlots] = useState(false);
 
-  // Récupérer les données depuis l'API
+  const queryClient = useQueryClient();
+
   const { data: exams, isLoading: isLoadingExams } = useQuery({
     queryKey: ["exams"],
     queryFn: async () => {
@@ -102,41 +131,27 @@ export default function Scheduler() {
   };
 
   const handleManualScheduling = async () => {
-    if (!selectedExam || !selectedRoom || !selectedTimeSlot) {
-      toast({
-        title: "Formulaire incomplet",
-        description: "Veuillez sélectionner au moins un examen, une salle et un créneau.",
-        variant: "destructive",
-      });
+    if (!selectedExam || !selectedRoom || !selectedTimeSlot || selectedProctors.length === 0) {
+      toast.error("Veuillez remplir tous les champs requis");
       return;
     }
 
     try {
       setSchedulingInProgress(true);
-      const response = await fetch("/api/manual-schedule", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          examId: parseInt(selectedExam),
-          roomId: parseInt(selectedRoom),
-          timeSlotId: parseInt(selectedTimeSlot),
-          proctorIds: selectedProctors.map(id => parseInt(id)),
-        }),
+
+      const response = await axios.post("/api/manual-schedule", {
+        examId: parseInt(selectedExam),
+        roomId: parseInt(selectedRoom),
+        timeSlotId: parseInt(selectedTimeSlot),
+        proctorIds: selectedProctors.map(id => parseInt(id))
       });
 
-      if (!response.ok) {
-        throw new Error(`Erreur: ${response.status}`);
-      }
-
-      const result = await response.json();
-
-      if (result.status === "success") {
-        toast({
-          title: "Planification manuelle réussie",
-          description: "L'examen a été planifié avec succès.",
-        });
+      if (response.data.status === 'success') {
+        toast.success("Planification manuelle réussie");
+        // Rafraîchir les données
+        queryClient.invalidateQueries({ queryKey: ["exams"] });
+        queryClient.invalidateQueries({ queryKey: ["rooms"] });
+        queryClient.invalidateQueries({ queryKey: ["time-slots"] });
 
         // Réinitialiser les sélections
         setSelectedExam("");
@@ -144,21 +159,32 @@ export default function Scheduler() {
         setSelectedTimeSlot("");
         setSelectedProctors([]);
       } else {
-        toast({
-          title: "Échec de la planification",
-          description: result.message || "Une erreur s'est produite lors de la planification.",
-          variant: "destructive",
-        });
+        toast.error("Erreur lors de la planification manuelle");
       }
     } catch (error) {
-      console.error("Erreur lors de la planification manuelle:", error);
-      toast({
-        title: "Erreur de planification",
-        description: "Une erreur s'est produite lors de la planification manuelle.",
-        variant: "destructive",
-      });
+      console.error("Error in manual scheduling:", error);
+      toast.error("Erreur lors de la planification manuelle");
     } finally {
       setSchedulingInProgress(false);
+    }
+  };
+
+  const handleGenerateTimeSlots = async () => {
+    try {
+      setIsGeneratingTimeSlots(true);
+      const result = await createTimeSlots();
+
+      if (result.success) {
+        toast.success("Créneaux horaires générés avec succès");
+        queryClient.invalidateQueries({ queryKey: ["time-slots"] });
+      } else {
+        toast.error("Erreur lors de la génération des créneaux horaires");
+      }
+    } catch (error) {
+      console.error("Error generating time slots:", error);
+      toast.error("Erreur lors de la génération des créneaux horaires");
+    } finally {
+      setIsGeneratingTimeSlots(false);
     }
   };
 
@@ -224,7 +250,8 @@ export default function Scheduler() {
             </CardContent>
             <CardFooter>
               <Button 
-                onClick={handleAutomaticScheduling} 
+                className="mt-2 bg-green-600 hover:bg-green-700" 
+                onClick={handleAutomaticScheduling}
                 disabled={schedulingInProgress || !unassignedExams?.length || !availableRooms?.length || !availableTimeSlots?.length}
                 className="w-full"
               >
@@ -313,11 +340,9 @@ export default function Scheduler() {
                 <div>
                   <Label htmlFor="proctors">Surveillants</Label>
                   <Select 
-                    onValueChange={(value) => {
-                      if (!selectedProctors.includes(value)) {
-                        setSelectedProctors([...selectedProctors, value]);
-                      }
-                    }}
+                    multiple
+                    value={selectedProctors}
+                    onValueChange={setSelectedProctors}
                   >
                     <SelectTrigger id="proctors" className="w-full">
                       <SelectValue placeholder="Sélectionner des surveillants" />
@@ -357,12 +382,12 @@ export default function Scheduler() {
             </CardContent>
             <CardFooter>
               <Button 
-                onClick={handleManualScheduling} 
-                disabled={schedulingInProgress || !selectedExam || !selectedRoom || !selectedTimeSlot}
-                className="w-full"
-              >
-                {schedulingInProgress ? "Planification en cours..." : "Planifier manuellement"}
-              </Button>
+                  className="mt-4 w-full bg-green-600 hover:bg-green-700" 
+                  onClick={handleManualScheduling}
+                  disabled={schedulingInProgress || !selectedExam || !selectedRoom || !selectedTimeSlot || selectedProctors.length === 0}
+                >
+                  {schedulingInProgress ? "Planification en cours..." : "Planifier"}
+                </Button>
             </CardFooter>
           </Card>
         </TabsContent>
