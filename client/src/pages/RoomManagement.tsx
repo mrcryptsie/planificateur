@@ -267,9 +267,9 @@ export default function RoomManagement() {
                       <TableCell>
                         <Badge 
                           variant="outline" 
-                          className={getStatusColor(room.status)}
+                          className={getStatusColor(room.status || 'available')}
                         >
-                          {statusLabels[room.status]}
+                          {statusLabels[room.status || 'available']}
                         </Badge>
                       </TableCell>
                       <TableCell>
@@ -311,8 +311,8 @@ export default function RoomManagement() {
                                 <div className="grid grid-cols-4 items-center gap-4">
                                   <Label className="text-right font-medium">Statut</Label>
                                   <div className="col-span-3">
-                                    <Badge variant="outline" className={getStatusColor(room.status)}>
-                                      {statusLabels[room.status]}
+                                    <Badge variant="outline" className={getStatusColor(room.status || 'available')}>
+                                      {statusLabels[room.status || 'available']}
                                     </Badge>
                                   </div>
                                 </div>

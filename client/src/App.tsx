@@ -6,15 +6,15 @@ import { useEffect } from "react";
 import gsap from "gsap";
 import MainLayout from "@/components/layout/MainLayout";
 
-// Nous allons les implémenter au fur et à mesure
-const Home = Dashboard; // Temporaire, page d'accueil
-const ExamManagement = Dashboard; // Temporaire, gestion des examens
-const AddExam = Dashboard; // Temporaire, ajout d'examens
-const RoomManagement = Dashboard; // Temporaire, gestion des salles
-const ProctorManagement = Dashboard; // Temporaire, gestion des surveillants
-const Scheduler = Dashboard; // Temporaire, planificateur
-const ConflictResolution = Dashboard; // Temporaire, résolution des conflits
-const ExportPlan = Dashboard; // Temporaire, exportation
+// Import des composants réels
+import Home from "@/pages/Home";
+import ExamManagement from "@/pages/ExamManagement";
+import AddExam from "@/pages/AddExam";
+import RoomManagement from "@/pages/RoomManagement";
+import ProctorManagement from "@/pages/ProctorManagement";
+import Scheduler from "@/pages/Scheduler";
+import ConflictResolution from "@/pages/ConflictResolution";
+import ExportPlan from "@/pages/ExportPlan";
 
 function Router() {
   return (
