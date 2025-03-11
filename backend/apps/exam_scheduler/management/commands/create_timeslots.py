@@ -11,10 +11,12 @@ class Command(BaseCommand):
         # Supprimer les créneaux existants
         TimeSlot.objects.all().delete()
         
+        # Obtenir la date actuelle et les 4 jours suivants
         today = timezone.now().date()
+        dates = [today + timedelta(days=i) for i in range(5)]
         
-        # Définir les durées d'examen et les créneaux correspondants
-        exam_slots = {
+        # Définir les créneaux horaires par durée
+        time_slots = {
             "1h": [
                 ("08:00", "09:00"), ("09:00", "10:00"), ("10:00", "11:00"),
                 ("11:00", "12:00"), ("12:00", "13:00"), ("13:00", "14:00"),
@@ -33,30 +35,28 @@ class Command(BaseCommand):
             ]
         }
         
-        # Générer des créneaux pour les 5 prochains jours
-        days = 5
         counter = 0
         
-        for i in range(days):
-            date = today + timedelta(days=i)
-            
-            for duration, slots in exam_slots.items():
-                for start, end in slots:
-                    start_hour, start_min = map(int, start.split(':'))
-                    end_hour, end_min = map(int, end.split(':'))
+        # Créer les créneaux pour chaque date
+        for date in dates:
+            for duration, slots in time_slots.items():
+                for start_time, end_time in slots:
+                    start_hour, start_min = map(int, start_time.split(':'))
+                    end_hour, end_min = map(int, end_time.split(':'))
                     
-                    start_time = datetime.combine(date, datetime.min.time().replace(hour=start_hour, minute=start_min))
-                    end_time = datetime.combine(date, datetime.min.time().replace(hour=end_hour, minute=end_min))
+                    start_datetime = datetime.combine(date, datetime.min.time().replace(hour=start_hour, minute=start_min))
+                    end_datetime = datetime.combine(date, datetime.min.time().replace(hour=end_hour, minute=end_min))
                     
                     # Ajouter le fuseau horaire
-                    start_time = timezone.make_aware(start_time)
-                    end_time = timezone.make_aware(end_time)
+                    start_datetime = timezone.make_aware(start_datetime)
+                    end_datetime = timezone.make_aware(end_datetime)
                     
-                    # Créer le créneau
+                    # Créer le créneau avec une description
+                    duration_text = duration
                     TimeSlot.objects.create(
-                        start_time=start_time,
-                        end_time=end_time
+                        start_time=start_datetime,
+                        end_time=end_datetime
                     )
                     counter += 1
         
-        self.stdout.write(self.style.SUCCESS(f'Créé {counter} créneaux horaires'))
+        self.stdout.write(self.style.SUCCESS(f'Créé {counter} créneaux horaires pour 5 jours'))

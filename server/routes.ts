@@ -135,6 +135,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Error fetching time slots" });
     }
   });
+  
+  app.post("/api/generate-timeslots", async (_req, res) => {
+    try {
+      const response = await axios.post('http://localhost:8000/api/exam-scheduler/generate-timeslots/');
+      res.json(response.data);
+    } catch (error) {
+      console.error('Error generating time slots:', error);
+      res.status(500).json({ message: "Error generating time slots" });
+    }
+  });
 
   app.post("/api/timeslots", async (req, res) => {
     try {
