@@ -67,7 +67,7 @@ export default function Home() {
             <Button 
               size="lg" 
               className="bg-primary-600 hover:bg-primary-700 text-white"
-              onClick={() => navigate('/scheduler')}
+              onClick={() => setLocation('/scheduler')}
             >
               Commencer la planification
               <LucideArrowRight className="ml-2 h-4 w-4" />
@@ -75,7 +75,7 @@ export default function Home() {
             <Button 
               size="lg" 
               variant="outline" 
-              onClick={() => navigate('/dashboard')}
+              onClick={() => setLocation('/dashboard')}
             >
               Voir le tableau de bord
             </Button>
@@ -155,7 +155,7 @@ export default function Home() {
                   <Button 
                     size="lg" 
                     className="bg-white text-primary-700 hover:bg-gray-100 shadow-md"
-                    onClick={() => navigate('/exams')}
+                    onClick={() => setLocation('/exams')}
                   >
                     Gérer les examens
                   </Button>
