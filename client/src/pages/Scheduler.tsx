@@ -32,81 +32,110 @@ export default function Scheduler() {
   const [isOptimizing, setIsOptimizing] = useState(false);
   const [optimizationProgress, setOptimizationProgress] = useState(0);
   const [optimizationResult, setOptimizationResult] = useState<"success" | "error" | "warning" | null>(null);
-  
+
   // Récupérer les examens, salles et surveillants
   const { data: exams = [] } = useQuery<Exam[]>({
     queryKey: ["/api/exams"],
   });
-  
+
   const { data: rooms = [] } = useQuery<Room[]>({
     queryKey: ["/api/rooms"],
   });
-  
+
   const { data: proctors = [] } = useQuery<Proctor[]>({
     queryKey: ["/api/proctors"],
   });
-  
+
   // Fonction pour lancer l'optimisation
   const handleStartOptimization = async () => {
     setIsOptimizing(true);
     setOptimizationProgress(0);
     setOptimizationResult(null);
-    
+
     try {
-      // Préparation des données pour l'API
-      const optimizationData = {
-        exams: exams.map(exam => exam.id),
-        rooms: rooms.map(room => room.id),
-        proctors: proctors.map(proctor => proctor.id),
-        constraints: {
-          avoidSameTimeForSameLevel: true,
-          avoidSameTimeForSameDepartment: true,
-          minimizeProctorCount: true,
-          ensureRoomCapacity: true
-        }
-      };
-      
-      // Simulation de la progression
+      // Initialiser l'intervalle de progression
       const progressInterval = setInterval(() => {
         setOptimizationProgress(prev => {
           // Ne pas dépasser 95% pendant la simulation
           return Math.min(prev + Math.random() * 5, 95);
         });
       }, 300);
-      
+
       // Appel à l'API pour lancer l'optimisation
-      // Nous simulons cet appel pour le moment
-      await new Promise(resolve => setTimeout(resolve, 5000));
-      
+      const response = await fetch('/api/schedule/', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          exams: exams.map(exam => exam.id),
+          rooms: rooms.map(room => room.id),
+          proctors: proctors.map(proctor => proctor.id),
+          constraints: {
+            avoidSameTimeForSameLevel: true,
+            avoidSameTimeForSameDepartment: true,
+            minimizeProctorCount: true,
+            ensureRoomCapacity: true
+          }
+        })
+      });
+
       clearInterval(progressInterval);
       setOptimizationProgress(100);
-      
-      // Déterminer le résultat en fonction des ressources
-      let result: "success" | "error" | "warning";
-      
-      if (!hasEnoughRooms || !hasEnoughProctors) {
-        result = "warning";
-      } else if (exams.length === 0) {
-        result = "error";
+
+      // Analyser la réponse
+      const data = await response.json();
+
+      if (response.ok) {
+        if (data.status === 'success') {
+          setOptimizationResult("success");
+          toast({
+            title: "Planification réussie",
+            description: `${data.scheduled_exams} examens ont été planifiés avec succès.`,
+            variant: "success",
+          });
+        } else if (data.status === 'partial') {
+          setOptimizationResult("warning");
+          toast({
+            title: "Planification partielle",
+            description: data.message || "Certains examens n'ont pas pu être planifiés.",
+            variant: "warning",
+          });
+        } else {
+          setOptimizationResult("error");
+          toast({
+            title: "Échec de la planification",
+            description: data.message || "Impossible de créer un planning valide.",
+            variant: "destructive",
+          });
+        }
       } else {
-        result = "success";
+        setOptimizationResult("error");
+        toast({
+          title: "Erreur",
+          description: data.message || "Une erreur s'est produite lors de la planification.",
+          variant: "destructive",
+        });
       }
-      
-      setOptimizationResult(result);
     } catch (error) {
       console.error("Erreur lors de l'optimisation:", error);
       setOptimizationResult("error");
+      toast({
+        title: "Erreur",
+        description: "Une erreur s'est produite lors de la communication avec le serveur.",
+        variant: "destructive",
+      });
     } finally {
       setIsOptimizing(false);
     }
   };
-  
+
   // Vérification des ressources
   const hasEnoughRooms = rooms.length >= exams.length;
   const hasEnoughProctors = proctors.length >= exams.length;
   const hasAssignedRooms = exams.some(exam => exam.roomId !== null);
   const hasAssignedProctors = exams.some(exam => exam.proctorIds !== null && exam.proctorIds.length > 0);
-  
+
   return (
     <div className="space-y-6">
       <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
@@ -129,14 +158,14 @@ export default function Scheduler() {
           )}
         </Button>
       </div>
-      
+
       <Tabs defaultValue="dashboard" className="w-full">
         <TabsList className="grid w-full sm:w-[600px] grid-cols-3">
           <TabsTrigger value="dashboard">Tableau de bord</TabsTrigger>
           <TabsTrigger value="configuration">Configuration</TabsTrigger>
           <TabsTrigger value="results">Résultats</TabsTrigger>
         </TabsList>
-        
+
         <TabsContent value="dashboard" className="mt-6 space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <Card>
@@ -155,7 +184,7 @@ export default function Scheduler() {
                 <LucideCalendar className="h-5 w-5 text-primary-500" />
               </CardFooter>
             </Card>
-            
+
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg">Salles</CardTitle>
@@ -172,7 +201,7 @@ export default function Scheduler() {
                 <LucideHome className="h-5 w-5 text-primary-500" />
               </CardFooter>
             </Card>
-            
+
             <Card>
               <CardHeader className="pb-2">
                 <CardTitle className="text-lg">Surveillants</CardTitle>
@@ -190,7 +219,7 @@ export default function Scheduler() {
               </CardFooter>
             </Card>
           </div>
-          
+
           <Card>
             <CardHeader>
               <CardTitle>État du planificateur</CardTitle>
@@ -217,7 +246,7 @@ export default function Scheduler() {
                     </div>
                     <Progress value={hasEnoughRooms ? 100 : (rooms.length / exams.length) * 100} className="h-2" />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>Surveillants disponibles</span>
@@ -228,7 +257,7 @@ export default function Scheduler() {
                     </div>
                     <Progress value={hasEnoughProctors ? 100 : (proctors.length / exams.length) * 100} className="h-2" />
                   </div>
-                  
+
                   <div className="space-y-2">
                     <div className="flex justify-between">
                       <span>Contraintes temporelles</span>
@@ -238,13 +267,13 @@ export default function Scheduler() {
                   </div>
                 </>
               )}
-              
+
               {optimizationResult && (
                 <div className="mt-6">
                   <Separator className="my-4" />
                   <div className="mt-4">
                     <h3 className="text-lg font-medium mb-2">Dernier résultat</h3>
-                    
+
                     {optimizationResult === "success" && (
                       <Alert className="bg-green-50 border-green-200">
                         <LucideCheck className="h-4 w-4 text-green-600" />
@@ -254,7 +283,7 @@ export default function Scheduler() {
                         </AlertDescription>
                       </Alert>
                     )}
-                    
+
                     {optimizationResult === "warning" && (
                       <Alert className="bg-amber-50 border-amber-200">
                         <LucideAlertTriangle className="h-4 w-4 text-amber-600" />
@@ -264,7 +293,7 @@ export default function Scheduler() {
                         </AlertDescription>
                       </Alert>
                     )}
-                    
+
                     {optimizationResult === "error" && (
                       <Alert variant="destructive">
                         <LucideX className="h-4 w-4" />
@@ -280,7 +309,7 @@ export default function Scheduler() {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="configuration" className="mt-6">
           <Card>
             <CardHeader>
@@ -302,7 +331,7 @@ export default function Scheduler() {
             </CardContent>
           </Card>
         </TabsContent>
-        
+
         <TabsContent value="results" className="mt-6">
           <Card>
             <CardHeader>
@@ -344,7 +373,7 @@ export default function Scheduler() {
                           Tous les examens ont été planifiés avec succès.
                         </AlertDescription>
                       </Alert>
-                      
+
                       <div className="flex justify-center py-4">
                         <Button className="mr-2">
                           <LucideCalendar className="mr-2 h-4 w-4" />
@@ -357,7 +386,7 @@ export default function Scheduler() {
                       </div>
                     </div>
                   )}
-                  
+
                   {optimizationResult === "warning" && (
                     <div className="space-y-6">
                       <Alert className="bg-amber-50 border-amber-200">
@@ -367,7 +396,7 @@ export default function Scheduler() {
                           Certains examens n'ont pas pu être planifiés en raison de contraintes conflictuelles.
                         </AlertDescription>
                       </Alert>
-                      
+
                       <div className="flex justify-center py-4">
                         <Button className="mr-2" variant="outline" onClick={() => {
                           toast({
@@ -385,7 +414,7 @@ export default function Scheduler() {
                       </div>
                     </div>
                   )}
-                  
+
                   {optimizationResult === "error" && (
                     <div className="space-y-6">
                       <Alert variant="destructive">
@@ -395,7 +424,7 @@ export default function Scheduler() {
                           L'optimisation a échoué en raison de contraintes incompatibles. Veuillez ajuster les paramètres et réessayer.
                         </AlertDescription>
                       </Alert>
-                      
+
                       <div className="flex justify-center py-4">
                         <Button 
                           className="mr-2" 
