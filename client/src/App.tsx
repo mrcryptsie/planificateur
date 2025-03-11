@@ -4,13 +4,34 @@ import Dashboard from "@/pages/Dashboard";
 import NotFound from "@/pages/not-found";
 import { useEffect } from "react";
 import gsap from "gsap";
+import MainLayout from "@/components/layout/MainLayout";
+
+// Nous allons les implémenter au fur et à mesure
+const Home = Dashboard; // Temporaire, page d'accueil
+const ExamManagement = Dashboard; // Temporaire, gestion des examens
+const AddExam = Dashboard; // Temporaire, ajout d'examens
+const RoomManagement = Dashboard; // Temporaire, gestion des salles
+const ProctorManagement = Dashboard; // Temporaire, gestion des surveillants
+const Scheduler = Dashboard; // Temporaire, planificateur
+const ConflictResolution = Dashboard; // Temporaire, résolution des conflits
+const ExportPlan = Dashboard; // Temporaire, exportation
 
 function Router() {
   return (
-    <Switch>
-      <Route path="/" component={Dashboard} />
-      <Route component={NotFound} />
-    </Switch>
+    <MainLayout>
+      <Switch>
+        <Route path="/" component={Home} />
+        <Route path="/dashboard" component={Dashboard} />
+        <Route path="/exams" component={ExamManagement} />
+        <Route path="/exams/add" component={AddExam} />
+        <Route path="/rooms" component={RoomManagement} />
+        <Route path="/proctors" component={ProctorManagement} />
+        <Route path="/scheduler" component={Scheduler} />
+        <Route path="/conflicts" component={ConflictResolution} />
+        <Route path="/export" component={ExportPlan} />
+        <Route component={NotFound} />
+      </Switch>
+    </MainLayout>
   );
 }
 

@@ -1,0 +1,66 @@
+📌 Liste des pages et leur contenu (Résumé) :
+1️⃣ Page d’accueil
+
+Présentation de la plateforme.
+Explication du fonctionnement et des avantages.
+Bouton pour accéder directement à la gestion des examens.
+2️⃣ Tableau de bord
+
+Vue d’ensemble des examens programmés.
+Graphiques et statistiques sur les affectations de salles et surveillants.
+Bouton pour ajouter un examen et lancer le planificateur.
+3️⃣ Page de gestion des examens
+
+Liste des examens avec options pour modifier/supprimer.
+Bouton "Ajouter un examen" (ouvre une modale ou une page dédiée).
+4️⃣ Page d’ajout d’examen
+
+Champs à renseigner :
+✅ Nom de l’examen
+✅ Filière concernée
+✅ Promotion concernée
+✅ Durée de l’examen
+✅ Nombre d’étudiants
+Bouton pour valider l’ajout et retourner à la liste des examens.
+5️⃣ Page de gestion des salles
+
+Liste des salles disponibles.
+Infos sur capacité, disponibilité et affectation actuelle.
+Bouton "Ajouter une salle".
+6️⃣ Page de gestion des surveillants
+
+Liste des surveillants disponibles.
+Infos sur disponibilité et nombre d’examens surveillés.
+Bouton "Ajouter un surveillant".
+7️⃣ Page du planificateur (Lancer l’algorithme)
+
+Interface pour générer automatiquement le planning.
+Résumé des examens non affectés et des conflits potentiels.
+Bouton "Lancer l’algorithme" pour exécuter Google OR-Tools.
+Affichage du résultat optimisé sous forme de planning interactif.
+8️⃣ Page de résolution des conflits
+
+Liste des conflits détectés (chevauchements, salles pleines, surveillants indisponibles).
+Propositions de l’algorithme pour ajuster le planning.
+Option pour modifier manuellement un examen ou relancer l’algorithme.
+9️⃣ Page d’exportation et impression
+
+Option pour exporter le planning en PDF / CSV.
+Bouton pour imprimer directement.
+🤖 Fonctionnalités de l’algorithme de programmation par contraintes :
+L’algorithme doit :
+✅ Éviter les conflits d’horaires (pas d’examens simultanés pour une même filière).
+✅ Optimiser l’affectation des salles en fonction de leur capacité.
+✅ Assigner les surveillants en évitant qu’ils soient affectés à plusieurs examens en même temps.
+✅ Gérer les périodes de transition entre deux examens dans une même salle.
+✅ Réattribuer intelligemment en cas d’absence de solution immédiate.
+✅ Minimiser le nombre total de surveillants nécessaires.
+✅ Éviter les sessions trop rapprochées pour une même promotion (exemple : ne pas faire passer deux examens le même matin pour un groupe d’étudiants).
+
+📥 Informations à renseigner pour lancer le planificateur :
+1️⃣ Plage horaire disponible (ex : 8h-18h).
+2️⃣ Liste des examens à planifier avec leur durée.
+3️⃣ Nombre d’étudiants par examen.
+4️⃣ Liste des salles et leur capacité.
+5️⃣ Liste des surveillants et leur disponibilité.
+6️⃣ Contraintes spécifiques (ex : pas plus de 2 examens par jour pour une même promotion).

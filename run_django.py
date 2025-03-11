@@ -26,6 +26,14 @@ def create_superuser():
         )
         print("Superuser created.")
 
+def load_fixtures():
+    from backend.apps.exam_scheduler.fixtures import generate_fixtures
+    
+    print("Loading fixtures...")
+    fixtures = generate_fixtures()
+    print(f"Created {len(fixtures['rooms'])} rooms, {len(fixtures['proctors'])} proctors, "
+          f"{len(fixtures['exams'])} exams, and {len(fixtures['time_slots'])} time slots.")
+
 def run_server():
     print("Starting Django development server...")
     call_command('runserver', '0.0.0.0:8000')
@@ -33,4 +41,5 @@ def run_server():
 if __name__ == '__main__':
     run_migrations()
     create_superuser()
+    load_fixtures()
     run_server()

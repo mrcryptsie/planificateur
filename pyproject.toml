@@ -5,9 +5,11 @@ description = "Add your description here"
 requires-python = ">=3.11"
 dependencies = [
     "dj-database-url>=2.3.0",
+    "django-rest-framework>=0.1.0",
     "django>=5.1.7",
     "django-cors-headers>=4.7.0",
     "djangorestframework>=3.15.2",
     "ortools>=9.12.4544",
     "psycopg2-binary>=2.9.10",
+    "pytype>=2024.10.11",
 ]

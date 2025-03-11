@@ -17,7 +17,8 @@ class Room(models.Model):
     )
     
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.capacity} places)"
+
 
 class Proctor(models.Model):
     DEPARTMENT_CHOICES = [
@@ -38,7 +39,8 @@ class Proctor(models.Model):
     avatar_url = models.URLField(null=True, blank=True)
     
     def __str__(self):
-        return self.name
+        return f"{self.name} ({self.get_department_display()})"
+
 
 class Exam(models.Model):
     LEVEL_CHOICES = [
@@ -74,7 +76,8 @@ class Exam(models.Model):
     proctors = models.ManyToManyField(Proctor, blank=True)
     
     def __str__(self):
-        return self.name
+        return f"{self.name} - {self.get_level_display()} {self.get_department_display()}"
+
 
 class TimeSlot(models.Model):
     room = models.ForeignKey(Room, on_delete=models.CASCADE, null=True, blank=True)
@@ -83,4 +86,6 @@ class TimeSlot(models.Model):
     exam = models.ForeignKey(Exam, on_delete=models.SET_NULL, null=True, blank=True)
     
     def __str__(self):
-        return f"{self.start_time.strftime('%d/%m/%Y %H:%M')} - {self.end_time.strftime('%H:%M')}"
+        room_name = self.room.name if self.room else "Aucune salle"
+        exam_name = self.exam.name if self.exam else "Aucun examen"
+        return f"{room_name} - {self.start_time.strftime('%d/%m/%Y %H:%M')} - {exam_name}"
