@@ -64,7 +64,7 @@ export default function RoomManagement() {
     const matchesSearch = searchTerm === "" || 
       room.name.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesStatus = statusFilter === "" || 
+    const matchesStatus = statusFilter === "" || statusFilter === "all" || 
       room.status === statusFilter;
     
     return matchesSearch && matchesStatus;
@@ -231,7 +231,7 @@ export default function RoomManagement() {
                 <SelectValue placeholder="Tous les statuts" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="">Tous</SelectItem>
+                <SelectItem value="all">Tous</SelectItem>
                 {Object.entries(statusLabels).map(([value, label]) => (
                   <SelectItem key={value} value={value}>{label}</SelectItem>
                 ))}

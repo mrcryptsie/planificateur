@@ -74,9 +74,9 @@ export default function ExamManagement() {
     const matchesSearch = searchTerm === "" || 
       exam.name.toLowerCase().includes(searchTerm.toLowerCase());
     
-    const matchesLevel = levelFilter === "" || exam.level === levelFilter;
+    const matchesLevel = levelFilter === "" || levelFilter === "all" || exam.level === levelFilter;
     
-    const matchesDepartment = departmentFilter === "" || 
+    const matchesDepartment = departmentFilter === "" || departmentFilter === "all" || 
       exam.department === departmentFilter;
     
     return matchesSearch && matchesLevel && matchesDepartment;
@@ -199,7 +199,7 @@ export default function ExamManagement() {
                       <SelectValue placeholder="Niveau" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Tous</SelectItem>
+                      <SelectItem value="all">Tous</SelectItem>
                       {Object.entries(levelLabels).map(([value, label]) => (
                         <SelectItem key={value} value={value}>{label}</SelectItem>
                       ))}
@@ -211,7 +211,7 @@ export default function ExamManagement() {
                       <SelectValue placeholder="Département" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="">Tous</SelectItem>
+                      <SelectItem value="all">Tous</SelectItem>
                       {Object.entries(departmentLabels).map(([value, label]) => (
                         <SelectItem key={value} value={value}>{label}</SelectItem>
                       ))}
