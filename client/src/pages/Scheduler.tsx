@@ -335,6 +335,15 @@ export default function Scheduler() {
                       )}
                     </SelectContent>
                   </Select>
+                  {availableTimeSlots?.length === 0 && (
+                    <Button 
+                      className="mt-2 w-full" 
+                      onClick={handleGenerateTimeSlots}
+                      disabled={isGeneratingTimeSlots}
+                    >
+                      {isGeneratingTimeSlots ? "Génération en cours..." : "Générer des créneaux horaires"}
+                    </Button>
+                  )}
                 </div>
 
                 <div>
